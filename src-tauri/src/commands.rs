@@ -1,115 +1,160 @@
 //! Tauri commands exposed to the frontend.
 
-use crate::db::{self, Book};
-use sha2::{Digest, Sha256};
-use std::fs::File;
-use std::io::Read;
-use std::path::Path;
+use crate::covers;
+use crate::db::{self, Book, Collection, Metadata};
+use crate::error::{Error, Result};
+use crate::library::{self, Dirs, ImportFailure, ImportSummary, Outcome};
+use serde::Serialize;
+use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::ipc::Response;
-use tauri::State;
+use tauri::ipc::{InvokeBody, Request, Response};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub struct AppState {
     pub db: Mutex<rusqlite::Connection>,
+    pub dirs: Dirs,
     /// Book path passed on the command line (Windows file associations, `free-reader book.epub`).
     pub launch_path: Mutex<Option<String>>,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("{0}")]
-    Io(#[from] std::io::Error),
-    #[error("database error: {0}")]
-    Db(#[from] rusqlite::Error),
-    #[error("unsupported file type: {0}")]
-    Unsupported(String),
-    #[error("book not found")]
-    NotFound,
-}
-
-impl serde::Serialize for Error {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {
-        s.serialize_str(&self.to_string())
+impl AppState {
+    fn book(&self, id: i64) -> Result<Book> {
+        db::get_book(&self.db.lock().unwrap(), id)?.ok_or(Error::NotFound)
     }
 }
 
-type Result<T> = std::result::Result<T, Error>;
-
-pub const SUPPORTED_FORMATS: &[&str] = &["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz"];
-
-fn format_of(path: &Path) -> Result<String> {
-    let ext = path
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(str::to_ascii_lowercase)
-        .unwrap_or_default();
-    if SUPPORTED_FORMATS.contains(&ext.as_str()) {
-        Ok(ext)
-    } else {
-        Err(Error::Unsupported(path.display().to_string()))
-    }
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> Result<T> + Send + 'static) -> Result<T> {
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| Error::Io(std::io::Error::other(e)))?
 }
 
-fn hash_file(path: &Path) -> Result<String> {
-    let mut file = File::open(path)?;
-    let mut hasher = Sha256::new();
-    let mut buf = vec![0u8; 64 * 1024];
-    loop {
-        let n = file.read(&mut buf)?;
-        if n == 0 {
-            break;
-        }
-        hasher.update(&buf[..n]);
-    }
-    Ok(hasher
-        .finalize()
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect())
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportProgress {
+    done: usize,
+    total: usize,
+    current: String,
 }
 
-/// Registers the file at `path` in the library and returns it with any saved progress.
+/// Imports files and folders. `copy` stores copies in the managed library folder; otherwise
+/// books are linked in place. Emits `import-progress` events as files are processed.
 #[tauri::command]
-pub async fn open_book(state: State<'_, AppState>, path: String) -> Result<Book> {
-    let p = Path::new(&path);
-    let format = format_of(p)?;
-    let hash = {
-        let p = p.to_path_buf();
-        tauri::async_runtime::spawn_blocking(move || hash_file(&p))
-            .await
-            .map_err(|e| Error::Io(std::io::Error::other(e)))??
-    };
-    let conn = state.db.lock().unwrap();
-    Ok(db::upsert_opened(&conn, &hash, &path, &format)?)
+pub async fn import_books(app: AppHandle, paths: Vec<String>, copy: bool) -> Result<ImportSummary> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let files = library::collect_files(&paths.iter().map(PathBuf::from).collect::<Vec<_>>());
+        let total = files.len();
+        let mut summary = ImportSummary::default();
+        for (i, file) in files.iter().enumerate() {
+            let _ = app.emit(
+                "import-progress",
+                ImportProgress {
+                    done: i,
+                    total,
+                    current: file
+                        .file_name()
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .unwrap_or_default(),
+                },
+            );
+            match library::import_file(&state.db, &state.dirs, file, copy) {
+                Ok(Outcome::Added(id)) => summary.added.push(id),
+                Ok(Outcome::Duplicate(id)) => summary.duplicates.push(id),
+                Err(e) => summary.failed.push(ImportFailure {
+                    path: file.to_string_lossy().into_owned(),
+                    error: e.to_string(),
+                }),
+            }
+        }
+        let _ = app.emit(
+            "import-progress",
+            ImportProgress {
+                done: total,
+                total,
+                current: String::new(),
+            },
+        );
+        Ok(summary)
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn list_books(state: State<'_, AppState>) -> Result<Vec<Book>> {
+    Ok(db::list_books(&state.db.lock().unwrap())?)
+}
+
+/// Marks a book as opened (for "Continue reading") and returns it with saved progress.
+#[tauri::command]
+pub fn mark_opened(state: State<'_, AppState>, id: i64) -> Result<Book> {
+    db::mark_opened(&state.db.lock().unwrap(), id)?.ok_or(Error::NotFound)
 }
 
 /// Returns the raw bytes of a registered book. Only library paths are readable.
 #[tauri::command]
 pub async fn read_book(state: State<'_, AppState>, id: i64) -> Result<Response> {
-    let path = {
-        let conn = state.db.lock().unwrap();
-        db::get_book(&conn, id)?.ok_or(Error::NotFound)?.path
-    };
-    let bytes = tauri::async_runtime::spawn_blocking(move || std::fs::read(path))
-        .await
-        .map_err(|e| Error::Io(std::io::Error::other(e)))??;
+    let path = state.book(id)?.path;
+    let bytes = blocking(move || {
+        std::fs::read(&path).map_err(|e| match e.kind() {
+            std::io::ErrorKind::NotFound => Error::Invalid(format!("The file is missing: {path}")),
+            _ => e.into(),
+        })
+    })
+    .await?;
     Ok(Response::new(bytes))
 }
 
 #[tauri::command]
-pub fn set_book_metadata(
+pub fn update_metadata(state: State<'_, AppState>, id: i64, metadata: Metadata) -> Result<Book> {
+    db::update_metadata(&state.db.lock().unwrap(), id, &metadata.normalized())?;
+    state.book(id)
+}
+
+/// Fills empty fields with metadata the reader discovered; never overwrites user edits.
+#[tauri::command]
+pub fn fill_missing_metadata(
     state: State<'_, AppState>,
     id: i64,
-    title: Option<String>,
-    authors: Option<String>,
+    metadata: Metadata,
 ) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    Ok(db::set_metadata(
-        &conn,
+    Ok(db::fill_missing_metadata(
+        &state.db.lock().unwrap(),
         id,
-        title.as_deref(),
-        authors.as_deref(),
+        &metadata.normalized(),
     )?)
+}
+
+fn store_cover(state: &AppState, id: i64, bytes: &[u8]) -> Result<Book> {
+    state.book(id)?;
+    let path = covers::store(&state.dirs.covers, id, bytes)?;
+    db::set_cover_path(&state.db.lock().unwrap(), id, Some(&path.to_string_lossy()))?;
+    state.book(id)
+}
+
+/// Sets a cover from raw image bytes in the request body; the book id is in `x-book-id`.
+#[tauri::command]
+pub fn set_cover_bytes(state: State<'_, AppState>, request: Request<'_>) -> Result<Book> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err(Error::Invalid("expected raw image bytes".into()));
+    };
+    let id = request
+        .headers()
+        .get("x-book-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok())
+        .ok_or_else(|| Error::Invalid("missing x-book-id header".into()))?;
+    store_cover(&state, id, bytes)
+}
+
+#[tauri::command]
+pub async fn set_cover_from_file(
+    state: State<'_, AppState>,
+    id: i64,
+    path: String,
+) -> Result<Book> {
+    let bytes = blocking(move || Ok(std::fs::read(path)?)).await?;
+    store_cover(&state, id, &bytes)
 }
 
 #[tauri::command]
@@ -119,50 +164,82 @@ pub fn save_progress(
     cfi: String,
     fraction: f64,
 ) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    Ok(db::save_progress(&conn, id, &cfi, fraction)?)
+    Ok(db::save_progress(
+        &state.db.lock().unwrap(),
+        id,
+        &cfi,
+        fraction,
+    )?)
 }
 
-#[tauri::command]
-pub fn recent_books(state: State<'_, AppState>, limit: Option<u32>) -> Result<Vec<Book>> {
-    let conn = state.db.lock().unwrap();
-    Ok(db::recent_books(&conn, limit.unwrap_or(24))?)
-}
-
+/// Removes a book. Managed copies are deleted; linked files are left on disk.
 #[tauri::command]
 pub fn remove_book(state: State<'_, AppState>, id: i64) -> Result<()> {
-    let conn = state.db.lock().unwrap();
-    Ok(db::remove_book(&conn, id)?)
+    library::remove_book(&state.db, &state.dirs, id)
+}
+
+#[tauri::command]
+pub fn list_collections(state: State<'_, AppState>) -> Result<Vec<Collection>> {
+    Ok(db::list_collections(&state.db.lock().unwrap())?)
+}
+
+fn collection_name(name: &str) -> Result<&str> {
+    let name = name.trim();
+    if name.is_empty() {
+        Err(Error::Invalid("Collection name can't be empty".into()))
+    } else {
+        Ok(name)
+    }
+}
+
+fn friendly_unique_error(e: rusqlite::Error, name: &str) -> Error {
+    match e {
+        rusqlite::Error::SqliteFailure(f, _)
+            if f.extended_code == rusqlite::ffi::SQLITE_CONSTRAINT_UNIQUE =>
+        {
+            Error::Invalid(format!("A collection named \"{name}\" already exists"))
+        }
+        e => e.into(),
+    }
+}
+
+#[tauri::command]
+pub fn create_collection(state: State<'_, AppState>, name: String) -> Result<i64> {
+    let name = collection_name(&name)?;
+    db::create_collection(&state.db.lock().unwrap(), name)
+        .map_err(|e| friendly_unique_error(e, name))
+}
+
+#[tauri::command]
+pub fn rename_collection(state: State<'_, AppState>, id: i64, name: String) -> Result<()> {
+    let name = collection_name(&name)?;
+    db::rename_collection(&state.db.lock().unwrap(), id, name)
+        .map_err(|e| friendly_unique_error(e, name))
+}
+
+#[tauri::command]
+pub fn delete_collection(state: State<'_, AppState>, id: i64) -> Result<()> {
+    Ok(db::delete_collection(&state.db.lock().unwrap(), id)?)
+}
+
+#[tauri::command]
+pub fn set_in_collection(
+    state: State<'_, AppState>,
+    collection_id: i64,
+    book_ids: Vec<i64>,
+    member: bool,
+) -> Result<()> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction()?;
+    for id in book_ids {
+        db::set_in_collection(&tx, collection_id, id, member)?;
+    }
+    tx.commit()?;
+    Ok(())
 }
 
 /// Returns the launch path once, so a reload doesn't reopen it.
 #[tauri::command]
 pub fn take_launch_path(state: State<'_, AppState>) -> Option<String> {
     state.launch_path.lock().unwrap().take()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn detects_supported_formats_case_insensitively() {
-        assert_eq!(format_of(Path::new("/a/Book.EPUB")).unwrap(), "epub");
-        assert_eq!(format_of(Path::new("x.azw3")).unwrap(), "azw3");
-        assert!(format_of(Path::new("notes.txt")).is_err());
-        assert!(format_of(Path::new("noext")).is_err());
-    }
-
-    #[test]
-    fn hashes_file_contents() {
-        let dir = std::env::temp_dir().join(format!("free-reader-test-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let f = dir.join("a.epub");
-        std::fs::write(&f, b"abc").unwrap();
-        assert_eq!(
-            hash_file(&f).unwrap(),
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-        std::fs::remove_dir_all(dir).unwrap();
-    }
 }

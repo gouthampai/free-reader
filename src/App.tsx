@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Library } from "./components/Library";
 import { Reader } from "./components/Reader";
-import { api, isSupportedPath, SUPPORTED_EXTENSIONS, type Book } from "./lib/api";
+import { api, SUPPORTED_EXTENSIONS, type Book } from "./lib/api";
 import { loadSettings, saveSettings, type ReaderSettings } from "./lib/settings";
 
 export default function App() {
@@ -15,8 +15,10 @@ export default function App() {
 
   const refresh = useCallback(() => {
     api
-      .recentBooks()
-      .then(setBooks)
+      .listBooks()
+      .then((all) =>
+        setBooks(all.filter((b) => b.lastOpenedAt).sort((a, b) => (b.lastOpenedAt ?? 0) - (a.lastOpenedAt ?? 0))),
+      )
       .catch((e) => setError(String(e)));
   }, []);
 
@@ -28,13 +30,16 @@ export default function App() {
   }, [settings]);
 
   const openPath = useCallback(async (path: string) => {
-    if (!isSupportedPath(path)) {
-      setError(`Unsupported file: ${path.split(/[\\/]/).pop()}`);
-      return;
-    }
     try {
       setError(null);
-      setCurrent(await api.openBook(path));
+      // Link in place: the file stays where it is, as before the library was managed.
+      const summary = await api.importBooks([path], false);
+      const id = summary.added[0] ?? summary.duplicates[0];
+      if (id == null) {
+        setError(summary.failed[0]?.error ?? `Couldn't open ${path}`);
+        return;
+      }
+      setCurrent(await api.markOpened(id));
     } catch (e) {
       setError(String(e));
     }
@@ -65,7 +70,7 @@ export default function App() {
       else if (type === "leave") setDragging(false);
       else if (type === "drop") {
         setDragging(false);
-        const path = event.payload.paths.find(isSupportedPath) ?? event.payload.paths[0];
+        const path = event.payload.paths[0];
         if (path) openPath(path);
       }
     });

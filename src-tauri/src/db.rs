@@ -376,47 +376,6 @@ pub fn set_in_collection(
     Ok(())
 }
 
-// Helpers for the open-by-path commands; removed once the frontend imports books.
-
-pub fn upsert_opened(
-    conn: &Connection,
-    hash: &str,
-    path: &str,
-    format: &str,
-) -> rusqlite::Result<Book> {
-    let ts = now();
-    let id: i64 = conn.query_row(
-        "INSERT INTO books (hash, path, format, added_at, last_opened_at)
-         VALUES (?1, ?2, ?3, ?4, ?4)
-         ON CONFLICT(hash) DO UPDATE SET path = excluded.path, last_opened_at = excluded.last_opened_at
-         RETURNING id",
-        params![hash, path, format, ts],
-        |r| r.get(0),
-    )?;
-    Ok(get_book(conn, id)?.expect("book just upserted"))
-}
-
-pub fn set_metadata(
-    conn: &Connection,
-    id: i64,
-    title: Option<&str>,
-    authors: Option<&str>,
-) -> rusqlite::Result<()> {
-    conn.execute(
-        "UPDATE books SET title = ?2, authors = ?3 WHERE id = ?1",
-        params![id, title, authors],
-    )?;
-    Ok(())
-}
-
-pub fn recent_books(conn: &Connection, limit: u32) -> rusqlite::Result<Vec<Book>> {
-    let mut stmt = conn.prepare(&format!(
-        "{BOOK_SELECT} WHERE b.last_opened_at IS NOT NULL ORDER BY b.last_opened_at DESC LIMIT ?1"
-    ))?;
-    let rows = stmt.query_map([limit], row_to_book)?;
-    rows.collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

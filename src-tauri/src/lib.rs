@@ -23,17 +23,30 @@ pub fn run() {
                 .find(|a| !a.starts_with('-') && std::path::Path::new(a).is_file());
             app.manage(AppState {
                 db: Mutex::new(conn),
+                dirs: library::Dirs {
+                    books: dir.join("books"),
+                    covers: dir.join("covers"),
+                },
                 launch_path: Mutex::new(launch_path),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::open_book,
+            commands::import_books,
+            commands::list_books,
+            commands::mark_opened,
             commands::read_book,
-            commands::set_book_metadata,
+            commands::update_metadata,
+            commands::fill_missing_metadata,
+            commands::set_cover_bytes,
+            commands::set_cover_from_file,
             commands::save_progress,
-            commands::recent_books,
             commands::remove_book,
+            commands::list_collections,
+            commands::create_collection,
+            commands::rename_collection,
+            commands::delete_collection,
+            commands::set_in_collection,
             commands::take_launch_path,
         ])
         .run(tauri::generate_context!())

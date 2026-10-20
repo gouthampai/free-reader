@@ -68,8 +68,8 @@ export function Reader({
         setToc(engine.toc);
         setTicks(engine.sectionFractions);
         setStatus({ kind: "ready" });
-        if (m.title && (m.title !== book.title || m.authors !== book.authors)) {
-          api.setBookMetadata(book.id, m.title, m.authors || null).catch(console.error);
+        if (m.title && (!book.title || !book.authors)) {
+          api.fillMissingMetadata(book.id, { title: m.title, authors: m.authors || null }).catch(console.error);
         }
       } catch (e) {
         if (!cancelled) setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) });
