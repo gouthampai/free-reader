@@ -38,16 +38,17 @@ Each format plugs in behind it, so the UI is identical across formats.
 ## 3. Phased roadmap
 
 ### Phase 0 — Foundations (~1 week)
-- [ ] Scaffold Tauri 2 + React + TS; ESLint/Prettier, Vitest, Playwright for end-to-end tests.
-- [ ] GitHub Actions build matrix: macOS universal (arm64 + x64) and Windows x64.
+- [x] Scaffold Tauri 2 + React + TS; ESLint/Prettier, Vitest.
+- [ ] Playwright end-to-end tests.
+- [x] GitHub Actions build matrix: macOS universal (arm64 + x64) and Windows x64.
 - [ ] Code signing early: Apple Developer ID + notarization; Windows certificate (Azure Trusted Signing).
-- [ ] Design tokens (type scale, spacing, light/dark/sepia palettes) before building screens.
+- [x] Design tokens (type scale, spacing, light/dark/sepia palettes) before building screens.
 
 ### Phase 1 — MVP reader (2–3 weeks)
-- [ ] Open an EPUB via drag-and-drop or file picker.
-- [ ] Paginated and scrolled modes, TOC sidebar, progress bar, keyboard/trackpad navigation.
-- [ ] Typography controls: font, size, line height, margins, justification; light/dark/sepia themes.
-- [ ] Remember reading position per book (CFI).
+- [x] Open an EPUB via drag-and-drop or file picker.
+- [x] Paginated and scrolled modes, TOC sidebar, progress bar, keyboard/trackpad navigation.
+- [x] Typography controls: font, size, line height, margins, justification; light/dark/sepia themes.
+- [x] Remember reading position per book (CFI).
 
 **Done when:** you'd actually read a novel in it.
 
@@ -88,7 +89,16 @@ Each format plugs in behind it, so the UI is identical across formats.
 3. **Highlight anchoring.** Store a CFI **plus** a surrounding-text snippet as a fallback so highlights survive rendering changes.
 4. **Signing and notarization.** Blocks release if left late — hence Phase 0.
 
-## 5. Data model (initial)
+## 5. Status and known follow-ups
+
+- Phase 0 is done except Playwright and code signing (needs an Apple Developer ID and a Windows signing certificate).
+- Phase 1 is implemented. It's verified end to end (open → render → metadata → progress saved); page turning, settings and the TOC still need manual QA on both OSes.
+- PDF (Phase 3): foliate's `pdf.js` loads PDF.js assets with `new URL(\`vendor/pdfjs/${path}\`, import.meta.url)`, which Vite can't resolve.
+  Fix by serving `vendor/foliate-js/vendor/pdfjs` as static assets.
+- Security: the Tauri CSP is currently `null`. Tighten it once asset loading is settled (foliate needs `blob:` frames).
+- macOS file associations send `RunEvent::Opened`, not argv. Handle that in Phase 4. (The argv path already works for Windows.)
+
+## 6. Data model (initial)
 
 - `books(id, hash, path, managed, format, title, authors, series, series_index, language, cover_path, added_at, last_opened_at)`
 - `progress(book_id, cfi, fraction, updated_at)`
