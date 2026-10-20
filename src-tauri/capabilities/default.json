@@ -10,6 +10,22 @@
     "opener:default",
     "opener:allow-reveal-item-in-dir",
     "dialog:allow-open",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "dialog:allow-save",
+    "fs:allow-write-text-file",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "dict:*"
+        },
+        {
+          "url": "https://*.wikipedia.org/*"
+        },
+        {
+          "url": "https://*.wiktionary.org/*"
+        }
+      ]
+    }
   ]
 }

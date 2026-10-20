@@ -130,6 +130,7 @@ export default function App() {
           settings={settings}
           onSettingsChange={setSettings}
           onClose={closeReader}
+          onError={setError}
         />
       ) : (
         <Library
