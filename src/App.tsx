@@ -50,6 +50,15 @@ export default function App() {
   }, [openPath]);
 
   useEffect(() => {
+    api
+      .takeLaunchPath()
+      .then((p) => {
+        if (p) openPath(p);
+      })
+      .catch(console.error);
+  }, [openPath]);
+
+  useEffect(() => {
     const unlisten = getCurrentWebview().onDragDropEvent((event) => {
       const { type } = event.payload;
       if (type === "enter" || type === "over") setDragging(true);

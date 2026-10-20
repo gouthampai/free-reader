@@ -14,8 +14,12 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
             let conn = db::open(&dir.join("library.db"))?;
+            let launch_path = std::env::args()
+                .skip(1)
+                .find(|a| !a.starts_with('-') && std::path::Path::new(a).is_file());
             app.manage(AppState {
                 db: Mutex::new(conn),
+                launch_path: Mutex::new(launch_path),
             });
             Ok(())
         })
@@ -26,6 +30,7 @@ pub fn run() {
             commands::save_progress,
             commands::recent_books,
             commands::remove_book,
+            commands::take_launch_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

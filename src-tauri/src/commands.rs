@@ -11,6 +11,8 @@ use tauri::State;
 
 pub struct AppState {
     pub db: Mutex<rusqlite::Connection>,
+    /// Book path passed on the command line (Windows file associations, `free-reader book.epub`).
+    pub launch_path: Mutex<Option<String>>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -131,6 +133,12 @@ pub fn recent_books(state: State<'_, AppState>, limit: Option<u32>) -> Result<Ve
 pub fn remove_book(state: State<'_, AppState>, id: i64) -> Result<()> {
     let conn = state.db.lock().unwrap();
     Ok(db::remove_book(&conn, id)?)
+}
+
+/// Returns the launch path once, so a reload doesn't reopen it.
+#[tauri::command]
+pub fn take_launch_path(state: State<'_, AppState>) -> Option<String> {
+    state.launch_path.lock().unwrap().take()
 }
 
 #[cfg(test)]

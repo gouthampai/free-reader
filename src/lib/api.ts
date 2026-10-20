@@ -33,6 +33,7 @@ export const api = {
     invoke<void>("set_book_metadata", { id, title, authors }),
   saveProgress: (id: number, cfi: string, fraction: number) => invoke<void>("save_progress", { id, cfi, fraction }),
   removeBook: (id: number) => invoke<void>("remove_book", { id }),
+  takeLaunchPath: () => invoke<string | null>("take_launch_path"),
 
   /** Loads a registered book's bytes as a File that foliate-js can open. */
   async readBookFile(book: Book): Promise<File> {

@@ -33,6 +33,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "category": "Books",
+    "shortDescription": "A polished ereader",
+    "fileAssociations": [
+      {
+        "ext": [
+          "epub"
+        ],
+        "name": "EPUB",
+        "mimeType": "application/epub+zip",
+        "role": "Viewer"
+      }
     ]
   }
 }
