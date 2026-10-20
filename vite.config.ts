@@ -17,10 +17,10 @@ const host = process.env.TAURI_DEV_HOST;
 function copyPdfjsAssets(): Plugin {
   return {
     name: "copy-pdfjs-assets",
-    apply: "build",
     enforce: "pre",
-    // Vite rewrites `new URL(`…${x}`, import.meta.url)` into an import.meta.glob it can't
-    // resolve here (and leaves broken in the output). Concatenation is left alone.
+    // Vite turns `new URL(`…${x}`, import.meta.url)` into an import.meta.glob it can't resolve:
+    // the dev server rejects it outright and builds leave it broken. Concatenation is left alone.
+    // Needed in dev and build alike; writeBundle below only runs for builds.
     transform(code, id) {
       if (!id.endsWith("/foliate-js/pdf.js")) return;
       const from = "new URL(`vendor/pdfjs/${path}`, import.meta.url)";
