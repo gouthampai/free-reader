@@ -17,6 +17,11 @@ use tauri_plugin_window_state::StateFlags;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be first: a second launch (e.g. opening a file from Explorer while the app runs)
+        // hands its arguments to this instance and exits.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+            opens::enqueue(app, opens::from_args(argv, std::path::Path::new(&cwd)));
+        }))
         // Logs to stdout and a file in the OS log directory; the webview forwards its errors here.
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -50,8 +55,10 @@ pub fn run() {
             let db_path = dir.join("library.db");
             let conn = db::open(&db_path)?;
             let indexer = fulltext::spawn_indexer(db_path);
-            app.state::<opens::PendingOpens>()
-                .push(opens::from_args(std::env::args()));
+            app.state::<opens::PendingOpens>().push(opens::from_args(
+                std::env::args(),
+                &std::env::current_dir().unwrap_or_default(),
+            ));
             app.manage(AppState {
                 db: Mutex::new(conn),
                 dirs: library::Dirs {

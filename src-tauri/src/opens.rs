@@ -29,11 +29,15 @@ impl PendingOpens {
     }
 }
 
-/// Book paths among the process arguments (skipping the executable and flags).
-pub fn from_args(args: impl IntoIterator<Item = String>) -> Vec<String> {
+/// Book paths among process arguments (skipping the executable and flags). Relative paths are
+/// resolved against `cwd`: for a second launch that's the directory it was started from.
+pub fn from_args(args: impl IntoIterator<Item = String>, cwd: &Path) -> Vec<String> {
     args.into_iter()
         .skip(1)
-        .filter(|a| !a.starts_with('-') && Path::new(a).is_file())
+        .filter(|a| !a.starts_with('-'))
+        .map(|a| cwd.join(a))
+        .filter(|p| p.is_file())
+        .map(|p| p.to_string_lossy().into_owned())
         .collect()
 }
 
@@ -80,7 +84,10 @@ mod tests {
         std::fs::write(&book, b"x").unwrap();
         let book = book.to_string_lossy().into_owned();
         let args = ["free-reader", "--flag", &book, "/does/not/exist.epub"].map(String::from);
-        assert_eq!(from_args(args), vec![book]);
+        assert_eq!(from_args(args, Path::new("/")), vec![book.clone()]);
+        // A relative path from a second launch resolves against that launch's directory.
+        let args = ["free-reader", "book.epub"].map(String::from);
+        assert_eq!(from_args(args, &dir), vec![book]);
         std::fs::remove_dir_all(dir).unwrap();
     }
 
