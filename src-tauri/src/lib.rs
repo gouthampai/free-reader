@@ -2,6 +2,8 @@ mod commands;
 mod covers;
 mod db;
 mod epub;
+mod error;
+mod library;
 
 use commands::AppState;
 use std::sync::Mutex;
