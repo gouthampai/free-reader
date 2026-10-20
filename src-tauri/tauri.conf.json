@@ -22,12 +22,39 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline' blob:",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "font-src": "'self' blob: data:",
+        "media-src": "'self' blob: data:",
+        "connect-src": "'self' ipc: http://ipc.localhost blob: data:",
+        "worker-src": "'self' blob:",
+        "frame-src": "'self' blob:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'"
+      },
       "assetProtocol": {
         "enable": true,
         "scope": [
           "$APPDATA/covers/**"
         ]
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src": "'self' 'unsafe-inline' blob:",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "font-src": "'self' blob: data:",
+        "media-src": "'self' blob: data:",
+        "connect-src": "'self' ipc: http://ipc.localhost blob: data: ws://localhost:1420 ws://localhost:1421",
+        "worker-src": "'self' blob:",
+        "frame-src": "'self' blob:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'"
       }
     }
   },
