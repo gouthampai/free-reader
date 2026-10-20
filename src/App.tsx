@@ -1,4 +1,5 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ImportStatus } from "./components/library/ImportStatus";
@@ -28,6 +29,12 @@ export default function App() {
   }, [settings]);
 
   useEffect(() => savePrefs(prefs), [prefs]);
+
+  // The window starts hidden (tauri.conf.json) so it never flashes unstyled; show it once the first
+  // render is committed. (requestAnimationFrame doesn't fire while the window is hidden.)
+  useEffect(() => {
+    getCurrentWindow().show().catch(console.error);
+  }, []);
 
   // Clean summaries fade on their own; ones with failures stay until dismissed.
   useEffect(() => {
