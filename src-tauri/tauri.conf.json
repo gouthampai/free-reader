@@ -51,6 +51,41 @@
         "name": "EPUB",
         "mimeType": "application/epub+zip",
         "role": "Viewer"
+      },
+      {
+        "ext": [
+          "mobi",
+          "azw",
+          "azw3"
+        ],
+        "name": "Mobipocket eBook",
+        "mimeType": "application/x-mobipocket-ebook",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "fb2",
+          "fbz"
+        ],
+        "name": "FictionBook",
+        "mimeType": "application/x-fictionbook+xml",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "cbz"
+        ],
+        "name": "Comic Book Archive",
+        "mimeType": "application/vnd.comicbook+zip",
+        "role": "Viewer"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF Document",
+        "mimeType": "application/pdf",
+        "role": "Viewer"
       }
     ]
   }

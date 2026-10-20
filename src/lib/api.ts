@@ -120,7 +120,8 @@ export const api = {
   deleteAnnotation: (id: number) => invoke<void>("delete_annotation", { id }),
   searchText: (query: string) => invoke<TextHit[]>("search_text", { query }),
   indexStatus: () => invoke<IndexStatus>("index_status"),
-  takeLaunchPath: () => invoke<string | null>("take_launch_path"),
+  /** Files the OS asked us to open (file associations, Open With, command line); clears the queue. */
+  takePendingOpens: () => invoke<string[]>("take_pending_opens"),
 
   /** Loads a registered book's bytes as a File that foliate-js can open. */
   async readBookFile(book: Book): Promise<File> {

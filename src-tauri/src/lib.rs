@@ -7,6 +7,7 @@ mod error;
 mod fulltext;
 mod library;
 mod menu;
+mod opens;
 
 use commands::AppState;
 use std::sync::Mutex;
@@ -32,6 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .manage(opens::PendingOpens::default())
         .menu(menu::build)
         .on_menu_event(menu::handle)
         .setup(|app| {
@@ -48,16 +50,14 @@ pub fn run() {
             let db_path = dir.join("library.db");
             let conn = db::open(&db_path)?;
             let indexer = fulltext::spawn_indexer(db_path);
-            let launch_path = std::env::args()
-                .skip(1)
-                .find(|a| !a.starts_with('-') && std::path::Path::new(a).is_file());
+            app.state::<opens::PendingOpens>()
+                .push(opens::from_args(std::env::args()));
             app.manage(AppState {
                 db: Mutex::new(conn),
                 dirs: library::Dirs {
                     books: dir.join("books"),
                     covers: dir.join("covers"),
                 },
-                launch_path: Mutex::new(launch_path),
                 indexer,
             });
             Ok(())
@@ -84,8 +84,17 @@ pub fn run() {
             commands::delete_annotation,
             commands::search_text,
             commands::index_status,
-            commands::take_launch_path,
+            commands::take_pending_opens,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            // Finder double-clicks and "Open With" arrive as an event on macOS, not as arguments.
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            if let tauri::RunEvent::Opened { urls } = event {
+                opens::enqueue(app, opens::from_urls(&urls));
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+            let _ = (app, event);
+        });
 }

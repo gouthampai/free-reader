@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -94,14 +95,21 @@ export default function App() {
     if (paths) addPaths(paths);
   }, [addPaths]);
 
-  // Opened via file association / command line: add it and start reading.
+  // Files opened from Finder/Explorer (double-click, Open With) or passed on the command line queue
+  // in Rust. Take them on startup and whenever Rust says more arrived; a single book opens directly.
   useEffect(() => {
-    api
-      .takeLaunchPath()
-      .then((p) => {
-        if (p) addPaths([p], { openSingle: true });
-      })
-      .catch(console.error);
+    const take = () =>
+      api
+        .takePendingOpens()
+        .then((paths) => {
+          if (paths.length) void addPaths(paths, { openSingle: paths.length === 1 });
+        })
+        .catch(console.error);
+    void take();
+    const unlisten = listen("pending-opens", () => void take());
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [addPaths]);
 
   useEffect(() => {

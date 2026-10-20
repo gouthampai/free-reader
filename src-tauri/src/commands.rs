@@ -6,6 +6,7 @@ use crate::db::{self, Book, Collection, Metadata};
 use crate::error::{Error, Result};
 use crate::fulltext::{self, IndexStatus, TextHit};
 use crate::library::{self, Dirs, ImportFailure, ImportSummary, Outcome};
+use crate::opens::PendingOpens;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::{mpsc, Mutex};
@@ -15,8 +16,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 pub struct AppState {
     pub db: Mutex<rusqlite::Connection>,
     pub dirs: Dirs,
-    /// Book path passed on the command line (Windows file associations, `free-reader book.epub`).
-    pub launch_path: Mutex<Option<String>>,
     /// Wakes the background full-text indexer.
     pub indexer: mpsc::Sender<()>,
 }
@@ -291,8 +290,8 @@ pub fn index_status(state: State<'_, AppState>) -> Result<IndexStatus> {
     Ok(fulltext::status(&state.db.lock().unwrap())?)
 }
 
-/// Returns the launch path once, so a reload doesn't reopen it.
+/// Returns (and clears) files the OS asked us to open; see `opens`.
 #[tauri::command]
-pub fn take_launch_path(state: State<'_, AppState>) -> Option<String> {
-    state.launch_path.lock().unwrap().take()
+pub fn take_pending_opens(pending: State<'_, PendingOpens>) -> Vec<String> {
+    pending.take()
 }
