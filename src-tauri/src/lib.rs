@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod epub;
 
 use commands::AppState;
 use std::sync::Mutex;

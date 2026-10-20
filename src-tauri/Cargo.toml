@@ -26,6 +26,9 @@ tauri-plugin-dialog = "=2.8.1"
 rusqlite = { version = "=0.40.2", features = ["bundled"] }
 sha2 = "=0.11.0"
 thiserror = "=2.0.21"
+zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }
+quick-xml = "=0.42.0"
+percent-encoding = "=2.3.2"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
