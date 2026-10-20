@@ -44,11 +44,15 @@ export class FoliateEngine implements ReaderEngine {
   /** Highlights by CFI. Foliate asks us to draw them as their sections load. */
   #marks = new Map<string, AnnotationMark>();
   #docs = new Set<Document>();
+  /** Page turns slide unless the OS asks for reduced motion. */
+  #reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  #onMotionChange = () => this.#applyMotion();
 
   constructor(container: HTMLElement) {
     const view = (this.#view = document.createElement("foliate-view") as View);
     view.style.cssText = "display:block;width:100%;height:100%";
     container.append(view);
+    this.#reducedMotion.addEventListener("change", this.#onMotionChange);
 
     view.addEventListener("relocate", (e) => {
       const d = (e as CustomEvent<FoliateRelocateDetail>).detail;
@@ -190,8 +194,12 @@ export class FoliateEngine implements ReaderEngine {
     r.setAttribute("gap", `${s.margin}%`);
     r.setAttribute("max-inline-size", `${s.maxWidth}px`);
     r.setAttribute("max-column-count", s.spread ? "2" : "1");
-    r.setAttribute("animated", "");
+    this.#applyMotion();
     r.setStyles?.(buildReaderCss(s));
+  }
+
+  #applyMotion() {
+    this.#view.renderer?.toggleAttribute("animated", !this.#reducedMotion.matches);
   }
 
   onRelocate(cb: (loc: ReaderLocation) => void) {
@@ -250,6 +258,7 @@ export class FoliateEngine implements ReaderEngine {
   }
 
   destroy() {
+    this.#reducedMotion.removeEventListener("change", this.#onMotionChange);
     for (const set of [this.#relocate, this.#keydown, this.#selection, this.#annotationClick]) set.clear();
     this.#docs.clear();
     try {
