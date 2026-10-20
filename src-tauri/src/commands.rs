@@ -1,5 +1,6 @@
 //! Tauri commands exposed to the frontend.
 
+use crate::annotations::{self, Annotation, NewAnnotation};
 use crate::covers;
 use crate::db::{self, Book, Collection, Metadata};
 use crate::error::{Error, Result};
@@ -242,6 +243,41 @@ pub fn set_in_collection(
     }
     tx.commit()?;
     Ok(())
+}
+
+#[tauri::command]
+pub fn list_annotations(state: State<'_, AppState>, book_id: i64) -> Result<Vec<Annotation>> {
+    Ok(annotations::list(&state.db.lock().unwrap(), book_id)?)
+}
+
+#[tauri::command]
+pub fn add_annotation(
+    state: State<'_, AppState>,
+    book_id: i64,
+    annotation: NewAnnotation,
+) -> Result<Annotation> {
+    state.book(book_id)?;
+    Ok(annotations::add(
+        &state.db.lock().unwrap(),
+        book_id,
+        annotation,
+    )?)
+}
+
+/// Sets the note (None clears it) and, if given, the color.
+#[tauri::command]
+pub fn update_annotation(
+    state: State<'_, AppState>,
+    id: i64,
+    note: Option<String>,
+    color: Option<String>,
+) -> Result<Annotation> {
+    annotations::update(&state.db.lock().unwrap(), id, note, color)?.ok_or(Error::NotFound)
+}
+
+#[tauri::command]
+pub fn delete_annotation(state: State<'_, AppState>, id: i64) -> Result<()> {
+    Ok(annotations::delete(&state.db.lock().unwrap(), id)?)
 }
 
 /// Full-text search across indexed books, best matches first.
