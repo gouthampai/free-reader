@@ -49,6 +49,24 @@ export interface ImportProgress {
   current: string;
 }
 
+export type AnnotationKind = "highlight" | "bookmark";
+
+export interface Annotation {
+  id: number;
+  bookId: number;
+  kind: AnnotationKind;
+  cfi: string;
+  /** Highlighted text, or a page excerpt for bookmarks. */
+  text: string | null;
+  note: string | null;
+  color: string | null;
+  chapter: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type NewAnnotation = Pick<Annotation, "kind" | "cfi" | "text" | "note" | "color" | "chapter">;
+
 export const SUPPORTED_EXTENSIONS = ["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz"];
 
 const MIME: Record<string, string> = {
@@ -81,6 +99,12 @@ export const api = {
   deleteCollection: (id: number) => invoke<void>("delete_collection", { id }),
   setInCollection: (collectionId: number, bookIds: number[], member: boolean) =>
     invoke<void>("set_in_collection", { collectionId, bookIds, member }),
+  listAnnotations: (bookId: number) => invoke<Annotation[]>("list_annotations", { bookId }),
+  addAnnotation: (bookId: number, annotation: NewAnnotation) =>
+    invoke<Annotation>("add_annotation", { bookId, annotation }),
+  updateAnnotation: (id: number, note: string | null, color?: string) =>
+    invoke<Annotation>("update_annotation", { id, note, color: color ?? null }),
+  deleteAnnotation: (id: number) => invoke<void>("delete_annotation", { id }),
   takeLaunchPath: () => invoke<string | null>("take_launch_path"),
 
   /** Loads a registered book's bytes as a File that foliate-js can open. */
