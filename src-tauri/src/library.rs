@@ -357,7 +357,14 @@ mod tests {
     #[test]
     fn copy_import_extracts_metadata_and_dedupes() {
         let f = Fixture::new("copy");
-        let src = f.write("My:Book.epub", &sample_epub("Copied"));
+        // Names with ':' only occur on Unix; on Windows "a:b" means an NTFS alternate data stream.
+        // (sanitize_file_name itself is covered by `sanitizes_file_names` on every platform.)
+        let (name, copied_as) = if cfg!(windows) {
+            ("My Book.epub", "My Book.epub")
+        } else {
+            ("My:Book.epub", "My_Book.epub")
+        };
+        let src = f.write(name, &sample_epub("Copied"));
         let Outcome::Added(id) = import_file(&f.db, &f.dirs, &src, true).unwrap() else {
             panic!("expected Added")
         };
@@ -365,7 +372,7 @@ mod tests {
         assert!(book.managed);
         assert_eq!(
             Path::new(&book.path),
-            f.dirs.books.join("My_Book.epub").as_path()
+            f.dirs.books.join(copied_as).as_path()
         );
         assert_eq!(book.title.as_deref(), Some("Copied"));
         assert_eq!(book.authors.as_deref(), Some("Someone"));
