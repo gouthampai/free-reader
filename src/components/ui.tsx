@@ -137,3 +137,25 @@ export function Slider({
     </label>
   );
 }
+
+/** Shared styling for Radix context and dropdown menus. */
+export const menuContentClass =
+  "z-50 min-w-[200px] animate-fade-in rounded-lg border border-border bg-surface p-1 text-[13px] text-fg shadow-panel";
+export const menuItemClass =
+  "relative flex h-8 cursor-default items-center gap-2 rounded-md px-2.5 outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-accent data-[highlighted]:text-accent-fg";
+export const menuDangerItemClass = `${menuItemClass} text-danger data-[highlighted]:bg-danger`;
+export const menuSeparatorClass = "my-1 h-px bg-border";
+export const menuLabelClass = "px-2.5 pt-1.5 pb-1 text-[11px] font-semibold tracking-wider text-muted uppercase";
+
+export const inputClass =
+  "h-9 w-full rounded-lg border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-muted focus:border-accent focus:outline-none";
+
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-medium text-muted">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-[11px] text-muted">{hint}</span>}
+    </label>
+  );
+}
