@@ -107,6 +107,8 @@ fn find_rootfile(xml: &[u8]) -> Result<Option<String>, EpubError> {
 struct Package {
     meta: Metadata,
     cover_href: Option<String>,
+    /// Manifest hrefs of the (X)HTML documents in reading order.
+    spine: Vec<String>,
 }
 
 struct ManifestItem {
@@ -148,6 +150,7 @@ fn parse_opf(xml: &[u8]) -> Result<Package, EpubError> {
     let mut description = None;
     let mut cover_id = None;
     let mut manifest: Vec<ManifestItem> = Vec::new();
+    let mut spine_ids: Vec<String> = Vec::new();
 
     // Series, from Calibre's EPUB 2 metas or EPUB 3 belongs-to-collection.
     let mut calibre_series = None;
@@ -197,6 +200,11 @@ fn parse_opf(xml: &[u8]) -> Result<Package, EpubError> {
                         media_type: attr(e, "media-type").unwrap_or_default(),
                         properties: attr(e, "properties").unwrap_or_default(),
                     }),
+                    "itemref" => {
+                        if let Some(idref) = attr(e, "idref") {
+                            spine_ids.push(idref);
+                        }
+                    }
                     _ => {}
                 }
                 if is_empty {
@@ -321,7 +329,136 @@ fn parse_opf(xml: &[u8]) -> Result<Package, EpubError> {
         }
         .normalized(),
         cover_href,
+        spine: spine_ids
+            .iter()
+            .filter_map(|id| manifest.iter().find(|i| &i.id == id))
+            .filter(|i| i.media_type.contains("html"))
+            .map(|i| i.href.clone())
+            .collect(),
     })
+}
+
+/// The text of each spine document in reading order (empty documents are skipped),
+/// for the full-text index.
+pub fn extract_text<R: Read + Seek>(reader: R) -> Result<Vec<String>, EpubError> {
+    let mut zip = zip::ZipArchive::new(reader)?;
+    let container = read_entry(&mut zip, "META-INF/container.xml")?
+        .ok_or(EpubError::Missing("META-INF/container.xml"))?;
+    let opf_path = find_rootfile(&container)?.ok_or(EpubError::Missing("a package document"))?;
+    let opf = read_entry(&mut zip, &opf_path)?.ok_or(EpubError::Missing("its package document"))?;
+    let pkg = parse_opf(&opf)?;
+    let mut out = Vec::new();
+    for href in pkg.spine {
+        if let Some(doc) = read_entry(&mut zip, &resolve_href(&opf_path, &href))? {
+            // A malformed chapter shouldn't stop the rest of the book being indexed.
+            let text = html_text(&doc).unwrap_or_default();
+            if !text.is_empty() {
+                out.push(text);
+            }
+        }
+    }
+    Ok(out)
+}
+
+const BLOCK_ELEMENTS: &[&str] = &[
+    "p",
+    "div",
+    "br",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "section",
+    "article",
+    "aside",
+    "header",
+    "footer",
+    "tr",
+    "td",
+    "th",
+    "dt",
+    "dd",
+    "pre",
+    "hr",
+    "figcaption",
+    "table",
+];
+
+/// The handful of HTML entities common in EPUBs that aren't predefined in XML.
+fn html_entity(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "nbsp" | "ensp" | "emsp" | "thinsp" => " ",
+        "mdash" => "—",
+        "ndash" => "–",
+        "hellip" => "…",
+        "lsquo" => "‘",
+        "rsquo" => "’",
+        "ldquo" => "“",
+        "rdquo" => "”",
+        "shy" | "zwnj" | "zwj" => "",
+        _ => return None,
+    })
+}
+
+/// Visible text of an XHTML document: skips head/script/style and separates block elements.
+fn html_text(xml: &[u8]) -> Result<String, EpubError> {
+    let mut reader = Reader::from_reader(xml);
+    reader.config_mut().check_end_names = false;
+    let mut buf = Vec::new();
+    let mut out = String::new();
+    let mut skip_depth = 0usize;
+    let space = |out: &mut String| {
+        if !out.is_empty() && !out.ends_with(char::is_whitespace) {
+            out.push(' ');
+        }
+    };
+    loop {
+        match reader.read_event_into(&mut buf)? {
+            Event::Start(e) => {
+                let name = local_name(&e).to_ascii_lowercase();
+                if skip_depth > 0 || matches!(name.as_str(), "head" | "script" | "style") {
+                    skip_depth += 1;
+                } else if BLOCK_ELEMENTS.contains(&name.as_str()) {
+                    space(&mut out);
+                }
+            }
+            Event::Empty(e) => {
+                if skip_depth == 0
+                    && BLOCK_ELEMENTS.contains(&local_name(&e).to_ascii_lowercase().as_str())
+                {
+                    space(&mut out);
+                }
+            }
+            Event::End(e) => {
+                if skip_depth > 0 {
+                    skip_depth -= 1;
+                } else if BLOCK_ELEMENTS
+                    .contains(&e.local_name().as_ref().to_ascii_lowercase().as_str())
+                {
+                    space(&mut out);
+                }
+            }
+            Event::Text(t) if skip_depth == 0 => out.push_str(&t.xml10_content()),
+            Event::CData(t) if skip_depth == 0 => out.push_str(&t),
+            Event::GeneralRef(r) if skip_depth == 0 => {
+                if let Ok(Some(c)) = r.resolve_char_ref() {
+                    out.push(c);
+                } else if let Some(s) =
+                    quick_xml::escape::resolve_predefined_entity(&r).or_else(|| html_entity(&r))
+                {
+                    out.push_str(s);
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+        buf.clear();
+    }
+    Ok(collapse_ws(&out))
 }
 
 #[cfg(test)]
@@ -421,6 +558,41 @@ pub(crate) mod tests {
         let x = extract(Cursor::new(build_epub(opf, &[]))).unwrap();
         assert_eq!(x.meta, Metadata::default());
         assert!(x.cover.is_none());
+    }
+
+    #[test]
+    fn extracts_spine_text_in_order() {
+        let opf = r#"<package><metadata/>
+          <manifest>
+            <item id="c2" href="text/two.xhtml" media-type="application/xhtml+xml"/>
+            <item id="c1" href="text/one.xhtml" media-type="application/xhtml+xml"/>
+            <item id="css" href="style.css" media-type="text/css"/>
+            <item id="blank" href="text/blank.xhtml" media-type="application/xhtml+xml"/>
+          </manifest>
+          <spine><itemref idref="c1"/><itemref idref="blank"/><itemref idref="c2"/><itemref idref="css"/></spine>
+        </package>"#;
+        let one = br#"<?xml version="1.0"?><html xmlns="http://www.w3.org/1999/xhtml">
+          <head><title>Ignored</title><style>p { color: red }</style></head>
+          <body><h1>Chapter&nbsp;One</h1><p>It was a <i>dark</i> and stormy&#160;night&mdash;truly.</p>
+          <p>Next<br/>line &amp; more</p><script>var x = 1;</script></body></html>"#;
+        let two = br#"<html><body><p>The end</p></body></html>"#;
+        let blank = br#"<html><body>   </body></html>"#;
+        let epub = build_epub(
+            opf,
+            &[
+                ("OEBPS/text/one.xhtml", one),
+                ("OEBPS/text/two.xhtml", two),
+                ("OEBPS/text/blank.xhtml", blank),
+            ],
+        );
+        let sections = extract_text(Cursor::new(epub)).unwrap();
+        assert_eq!(
+            sections,
+            vec![
+                "Chapter One It was a dark and stormy night—truly. Next line & more",
+                "The end"
+            ]
+        );
     }
 
     #[test]
