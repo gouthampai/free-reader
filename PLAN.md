@@ -53,10 +53,10 @@ Each format plugs in behind it, so the UI is identical across formats.
 **Done when:** you'd actually read a novel in it.
 
 ### Phase 2 — Library (2 weeks)
-- [ ] Import files/folders; copy into managed library or link in place; duplicate detection by hash.
-- [ ] Grid and list views with covers; sort/filter by author, series, recently read, progress.
-- [ ] Collections/shelves; metadata editor.
-- [ ] Home screen with "Continue reading".
+- [x] Import files/folders; copy into managed library or link in place; duplicate detection by hash.
+- [x] Grid and list views with covers; sort/filter by author, series, recently read, progress.
+- [x] Collections/shelves; metadata editor.
+- [x] Home screen with "Continue reading".
 
 ### Phase 3 — Reading features (2–3 weeks)
 - [ ] Multi-color highlights, notes, bookmarks; annotations panel.
@@ -97,10 +97,17 @@ Each format plugs in behind it, so the UI is identical across formats.
   Fix by serving `vendor/foliate-js/vendor/pdfjs` as static assets.
 - Security: the Tauri CSP is currently `null`. Tighten it once asset loading is settled (foliate needs `blob:` frames).
 - macOS file associations send `RunEvent::Opened`, not argv. Handle that in Phase 4. (The argv path already works for Windows.)
+- Phase 2 is implemented. Import, dedupe, copy/link, EPUB metadata and covers (Rust), and MOBI/AZW3 metadata and covers (foliate enrichment) are verified in the running app. The library UI itself (grid/list, menus, dialogs, collections) still needs manual QA.
+- Metadata extraction in Rust covers EPUB only. Other formats are filled in by the frontend via foliate-js after import, one book at a time in the background.
+  If large MOBI libraries make that slow, move MOBI/FB2 parsing to Rust.
+- Edited metadata lives only in the database; it's never written back to the book file.
+- Real-world EPUB check: `FR_CORPUS=/path/to/epubs cargo test corpus -- --ignored --nocapture` (in `src-tauri`).
 
-## 6. Data model (initial)
+## 6. Data model
 
-- `books(id, hash, path, managed, format, title, authors, series, series_index, language, cover_path, added_at, last_opened_at)`
+Migrations live in `src-tauri/src/db.rs` and are tracked with `PRAGMA user_version`.
+
+- `books(id, hash, path, managed, format, title, authors, series, series_index, language, publisher, description, cover_path, file_size, added_at, last_opened_at)`
 - `progress(book_id, cfi, fraction, updated_at)`
-- `annotations(id, book_id, kind, cfi, text_snippet, color, note, created_at, updated_at)`
-- `collections(id, name)`, `collection_books(collection_id, book_id)`
+- `collections(id, name)`, `collection_books(collection_id, book_id, added_at)`
+- Planned: `annotations(id, book_id, kind, cfi, text_snippet, color, note, created_at, updated_at)`

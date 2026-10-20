@@ -37,22 +37,30 @@ Release build: `pnpm tauri build`.
 
 ```
 src/
-  App.tsx                 app shell: library ↔ reader, file open, drag-and-drop
-  components/             Library, Reader, TOC and settings panels, UI primitives
+  App.tsx                 app shell: library ↔ reader, adding books, drag-and-drop
+  components/library/     sidebar, home, grid/list, book menus, metadata & import UI
+  components/Reader.tsx   reader chrome, TOC and settings panels
+  hooks/useLibrary.ts     library state, import progress, background enrichment
   reader/engine.ts        ReaderEngine interface — the UI talks only to this
   reader/foliateEngine.ts foliate-js implementation of ReaderEngine
+  reader/enrich.ts        fills metadata/covers for non-EPUB formats via foliate-js
   reader/readerCss.ts     user reading preferences → CSS injected into the book
   lib/api.ts              typed wrappers for Tauri commands
-  lib/settings.ts         reader settings, validation, persistence
+  lib/library.ts          sorting, filtering, grouping (authors/series)
+  lib/settings.ts         reader settings; lib/prefs.ts library view prefs
 src-tauri/src/
-  commands.rs             Tauri commands (open/read book, progress, metadata)
+  commands.rs             Tauri commands
+  library.rs              import pipeline: discover, hash/dedupe, copy or link
+  epub.rs                 fast EPUB metadata + cover extraction
+  covers.rs               cover thumbnails (served via the asset protocol)
   db.rs                   SQLite schema, migrations and queries
 vendor/foliate-js/        vendored rendering engine (MIT), pinned to 78914ae
 ```
 
-The library database lives in the OS app-data directory
-(`~/Library/Application Support/com.freereader.app/library.db` on macOS,
-`%APPDATA%\com.freereader.app\library.db` on Windows).
+Library data lives in the OS app-data directory: `library.db`, `covers/`, and `books/`
+(managed copies of imported books, when "Copy files into library" is on). That directory is
+in `~/Library/Application Support/com.freereader.app/` on macOS and
+`%APPDATA%\com.freereader.app\` on Windows.
 
 ## Keyboard shortcuts
 
@@ -62,5 +70,6 @@ The library database lives in the OS app-data directory
 | Space, PageDown / Shift+Space, PageUp | Next / previous page (paginated) |
 | T | Toggle table of contents |
 | ⌘/Ctrl + `=` / `-` | Larger / smaller text |
-| ⌘/Ctrl + O | Open a book |
+| ⌘/Ctrl + O | Add books |
+| ⌘/Ctrl + F | Search the library |
 | Esc | Close panel, then back to library |
