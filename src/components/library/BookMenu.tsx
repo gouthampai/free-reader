@@ -1,6 +1,6 @@
 import * as ContextMenu from "@radix-ui/react-context-menu";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { BookOpen, Check, ChevronRight, FolderSearch, Library, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Check, ChevronRight, FileQuestion, FolderSearch, Library, Pencil, Plus, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Book, Collection } from "../../lib/api";
 import { revealLabel } from "../../lib/platform";
@@ -12,6 +12,7 @@ export interface BookActions {
   setInCollection(collectionId: number, book: Book, member: boolean): void;
   newCollectionWith(book: Book): void;
   reveal(book: Book): void;
+  locate(book: Book): void;
   remove(book: Book): void;
 }
 
@@ -67,9 +68,15 @@ function Items({
           </M.SubContent>
         </M.Portal>
       </M.Sub>
-      <M.Item className={menuItemClass} onSelect={() => actions.reveal(book)}>
-        <FolderSearch size={14} /> {revealLabel}
-      </M.Item>
+      {book.missing ? (
+        <M.Item className={menuItemClass} onSelect={() => actions.locate(book)}>
+          <FileQuestion size={14} /> Locate File…
+        </M.Item>
+      ) : (
+        <M.Item className={menuItemClass} onSelect={() => actions.reveal(book)}>
+          <FolderSearch size={14} /> {revealLabel}
+        </M.Item>
+      )}
       <M.Separator className={menuSeparatorClass} />
       <M.Item className={menuDangerItemClass} onSelect={() => actions.remove(book)}>
         <Trash2 size={14} /> Remove from library…

@@ -29,6 +29,7 @@ const book: Book = {
   lastOpenedAt: null,
   progress: null,
   collectionIds: [],
+  missing: false,
 };
 
 let id = 1;

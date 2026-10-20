@@ -116,6 +116,8 @@ pub struct Book {
     pub last_opened_at: Option<i64>,
     pub progress: Option<Progress>,
     pub collection_ids: Vec<i64>,
+    /// The file is no longer at `path` (a linked book that was moved or deleted).
+    pub missing: bool,
 }
 
 /// Fields known when a book is first added to the library.
@@ -204,9 +206,9 @@ fn row_to_book(r: &rusqlite::Row) -> rusqlite::Result<Book> {
     let cfi: Option<String> = r.get(15)?;
     let fraction: Option<f64> = r.get(16)?;
     let collections: Option<String> = r.get(17)?;
+    let path: String = r.get(1)?;
     Ok(Book {
         id: r.get(0)?,
-        path: r.get(1)?,
         format: r.get(2)?,
         title: r.get(3)?,
         authors: r.get(4)?,
@@ -226,6 +228,8 @@ fn row_to_book(r: &rusqlite::Row) -> rusqlite::Result<Book> {
         collection_ids: collections
             .map(|s| s.split(',').filter_map(|x| x.parse().ok()).collect())
             .unwrap_or_default(),
+        missing: !Path::new(&path).exists(),
+        path,
     })
 }
 
@@ -273,6 +277,11 @@ pub fn insert_book(conn: &Connection, b: &NewBook) -> rusqlite::Result<i64> {
         ],
         |r| r.get(0),
     )
+}
+
+pub fn book_hash(conn: &Connection, id: i64) -> rusqlite::Result<Option<String>> {
+    conn.query_row("SELECT hash FROM books WHERE id = ?1", [id], |r| r.get(0))
+        .optional()
 }
 
 pub fn set_path(conn: &Connection, id: i64, path: &str, managed: bool) -> rusqlite::Result<()> {

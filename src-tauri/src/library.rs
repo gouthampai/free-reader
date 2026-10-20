@@ -231,6 +231,22 @@ pub fn import_file(db: &Mutex<Connection>, dirs: &Dirs, src: &Path, copy: bool) 
     Ok(Outcome::Added(id))
 }
 
+/// Points a book at a new copy of its file (after it was moved). The file must have the same
+/// contents, so a different book can't take over this one's progress and notes.
+pub fn relocate(db: &Mutex<Connection>, dirs: &Dirs, id: i64, src: &Path) -> Result<()> {
+    let expected = db::book_hash(&db.lock().unwrap(), id)?.ok_or(Error::NotFound)?;
+    if hash_file(src)? != expected {
+        return Err(Error::Invalid(
+            "That file is a different book: its contents don't match the one in your library."
+                .into(),
+        ));
+    }
+    let path = std::path::absolute(src)?;
+    let managed = path.starts_with(&dirs.books);
+    db::set_path(&db.lock().unwrap(), id, &path.to_string_lossy(), managed)?;
+    Ok(())
+}
+
 /// Removes a book from the library, deleting its cover and, for managed books, its file.
 pub fn remove_book(db: &Mutex<Connection>, dirs: &Dirs, id: i64) -> Result<()> {
     let book = db::get_book(&db.lock().unwrap(), id)?.ok_or(Error::NotFound)?;
@@ -407,6 +423,35 @@ mod tests {
         // Removing a linked book leaves the file alone.
         remove_book(&f.db, &f.dirs, id).unwrap();
         assert!(moved.exists());
+    }
+
+    #[test]
+    fn relocate_accepts_only_the_same_book() {
+        let f = Fixture::new("relocate");
+        let src = f.write("a.epub", &sample_epub("A"));
+        let Outcome::Added(id) = import_file(&f.db, &f.dirs, &src, false).unwrap() else {
+            panic!("expected Added")
+        };
+        let moved = f.root.join("src/moved.epub");
+        fs::rename(&src, &moved).unwrap();
+        assert!(
+            db::get_book(&f.db.lock().unwrap(), id)
+                .unwrap()
+                .unwrap()
+                .missing
+        );
+
+        let other = f.write("other.epub", &sample_epub("B"));
+        assert!(matches!(
+            relocate(&f.db, &f.dirs, id, &other),
+            Err(Error::Invalid(_))
+        ));
+
+        relocate(&f.db, &f.dirs, id, &moved).unwrap();
+        let book = db::get_book(&f.db.lock().unwrap(), id).unwrap().unwrap();
+        assert_eq!(Path::new(&book.path), moved.as_path());
+        assert!(!book.missing);
+        assert!(!book.managed);
     }
 
     #[test]

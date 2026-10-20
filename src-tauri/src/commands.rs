@@ -178,6 +178,17 @@ pub fn save_progress(
     )?)
 }
 
+/// Points a book whose file went missing at the file's new location.
+#[tauri::command]
+pub async fn relocate_book(app: AppHandle, id: i64, path: String) -> Result<Book> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        library::relocate(&state.db, &state.dirs, id, std::path::Path::new(&path))?;
+        state.book(id)
+    })
+    .await
+}
+
 /// Removes a book. Managed copies are deleted; linked files are left on disk.
 #[tauri::command]
 pub fn remove_book(state: State<'_, AppState>, id: i64) -> Result<()> {

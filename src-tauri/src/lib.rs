@@ -79,6 +79,7 @@ pub fn run() {
             commands::set_cover_bytes,
             commands::set_cover_from_file,
             commands::save_progress,
+            commands::relocate_book,
             commands::remove_book,
             commands::list_collections,
             commands::create_collection,

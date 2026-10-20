@@ -35,6 +35,7 @@ function book(p: Partial<Book> = {}): Book {
     lastOpenedAt: null,
     progress: null,
     collectionIds: [],
+    missing: false,
     ...p,
   };
 }

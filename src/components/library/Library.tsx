@@ -1,4 +1,4 @@
-import { ask } from "@tauri-apps/plugin-dialog";
+import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ChevronLeft } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -86,7 +86,8 @@ export function Library({
   }, [view, collections, loaded]);
 
   const actions: BookActions = {
-    open: (b) => onOpenBook(b),
+    open: (b) => (b.missing ? void locate(b) : onOpenBook(b)),
+    locate: (b) => void locate(b),
     edit: setEditing,
     setInCollection: (cid, book, member) => api.setInCollection(cid, [book.id], member).then(refresh).catch(fail),
     newCollectionWith: (book) => setNamePrompt({ mode: "create", bookId: book.id }),
@@ -100,6 +101,24 @@ export function Library({
       );
       if (ok) await api.removeBook(book.id).then(refresh).catch(fail);
     },
+  };
+
+  // A linked book whose file was moved or deleted: offer to find it, then open it.
+  const locate = async (book: Book) => {
+    const ok = await ask(
+      `“${displayTitle(book)}” isn't where it used to be. It may have been moved, renamed or deleted.`,
+      { title: "Book file not found", kind: "warning", okLabel: "Locate…", cancelLabel: "Cancel" },
+    );
+    if (!ok) return;
+    const path = await openDialog({ multiple: false, filters: [{ name: "Ebooks", extensions: [book.format] }] });
+    if (typeof path !== "string") return;
+    try {
+      const updated = await api.relocateBook(book.id, path);
+      await refresh();
+      onOpenBook(updated);
+    } catch (e) {
+      fail(e);
+    }
   };
 
   const deleteCollection = async (c: Collection) => {

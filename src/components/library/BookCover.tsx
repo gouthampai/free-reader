@@ -1,3 +1,4 @@
+import { FileQuestion } from "lucide-react";
 import { useState } from "react";
 import { coverUrl, type Book } from "../../lib/api";
 import { displayAuthors, displayTitle } from "../../lib/library";
@@ -10,8 +11,28 @@ function hashString(s: string) {
   return Math.abs(h);
 }
 
-/** The book's cover image, or a typographic placeholder when there is none. */
+/** The book's cover (or a placeholder), dimmed with a badge when its file is missing. */
 export function BookCover({ book, compact = false }: { book: Book; compact?: boolean }) {
+  if (!book.missing) return <CoverImage book={book} compact={compact} />;
+  return (
+    <div className="relative">
+      <div className="opacity-45 grayscale">
+        <CoverImage book={book} compact={compact} />
+      </div>
+      <span
+        className={`absolute flex items-center gap-1 rounded bg-black/75 font-medium text-white ${
+          compact ? "right-0.5 bottom-0.5 p-0.5" : "inset-x-2 bottom-2 justify-center px-1.5 py-1 text-[11px]"
+        }`}
+        title="File missing"
+      >
+        <FileQuestion size={compact ? 10 : 12} aria-hidden />
+        {compact ? <span className="sr-only">File missing</span> : "File missing"}
+      </span>
+    </div>
+  );
+}
+
+function CoverImage({ book, compact }: { book: Book; compact: boolean }) {
   const url = coverUrl(book);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const title = displayTitle(book);

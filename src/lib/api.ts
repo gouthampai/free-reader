@@ -29,6 +29,8 @@ export interface Book extends Metadata {
   lastOpenedAt: number | null;
   progress: Progress | null;
   collectionIds: number[];
+  /** The file is no longer at `path` (a linked book that was moved or deleted). */
+  missing: boolean;
 }
 
 export interface Collection {
@@ -106,6 +108,8 @@ export const api = {
   setCoverFromFile: (id: number, path: string) => invoke<Book>("set_cover_from_file", { id, path }),
   saveProgress: (id: number, cfi: string, fraction: number) => invoke<void>("save_progress", { id, cfi, fraction }),
   removeBook: (id: number) => invoke<void>("remove_book", { id }),
+  /** Points a book whose file went missing at its new location; the contents must match. */
+  relocateBook: (id: number, path: string) => invoke<Book>("relocate_book", { id, path }),
   listCollections: () => invoke<Collection[]>("list_collections"),
   createCollection: (name: string) => invoke<number>("create_collection", { name }),
   renameCollection: (id: number, name: string) => invoke<void>("rename_collection", { id, name }),
