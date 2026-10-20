@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
-import { metadataFromFoliate, plainText } from "./enrich";
+import { DONE, MAX_ATTEMPTS, metadataFromFoliate, plainText, recordDone, recordStart, shouldAttempt } from "./enrich";
 
 describe("metadataFromFoliate", () => {
   it("maps MOBI/FB2-style metadata", () => {
@@ -51,5 +51,21 @@ describe("metadataFromFoliate", () => {
 describe("plainText", () => {
   it("strips tags and keeps paragraphs", () => {
     expect(plainText("<div>One<br/>Two</div>  <p>  Three   four </p>")).toBe("One\n\nTwo\n\nThree four");
+  });
+});
+
+describe("enrichment attempts", () => {
+  it("retries failures up to the limit but never re-parses a finished book", () => {
+    let a = {};
+    expect(shouldAttempt(a, 7)).toBe(true);
+    for (let i = 0; i < MAX_ATTEMPTS - 1; i++) a = recordStart(a, 7);
+    expect(shouldAttempt(a, 7)).toBe(true);
+    a = recordStart(a, 7);
+    expect(shouldAttempt(a, 7)).toBe(false);
+
+    a = recordDone(recordStart(a, 8), 8);
+    expect(a).toMatchObject({ 8: DONE });
+    expect(shouldAttempt(a, 8)).toBe(false);
+    expect(shouldAttempt(a, 9)).toBe(true);
   });
 });

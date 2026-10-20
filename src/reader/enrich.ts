@@ -65,27 +65,46 @@ export async function fillGaps(
 
 export const needsEnrichment = (b: Book) => !b.title || !b.coverPath;
 
-const ATTEMPTED_KEY = "free-reader:enrich-attempted:v1";
+/**
+ * Per book: how many times parsing was started without completing, or DONE once a parse
+ * completed (even if it found no cover). Counting starts *before* each attempt, so a book that
+ * crashes or hangs the parser is also given up on after MAX_ATTEMPTS launches.
+ */
+export type Attempts = Record<number, number>;
+export const DONE = -1;
+export const MAX_ATTEMPTS = 3;
 
-function loadAttempted(): Set<number> {
+export const shouldAttempt = (a: Attempts, id: number) => a[id] !== DONE && (a[id] ?? 0) < MAX_ATTEMPTS;
+export const recordStart = (a: Attempts, id: number): Attempts => ({ ...a, [id]: (a[id] ?? 0) + 1 });
+export const recordDone = (a: Attempts, id: number): Attempts => ({ ...a, [id]: DONE });
+
+// v1 stored a set of books tried once, including ones that failed only because the parser
+// couldn't load; v2 lets those be retried.
+const ATTEMPTS_KEY = "free-reader:enrich-attempts:v2";
+const LEGACY_KEY = "free-reader:enrich-attempted:v1";
+
+function loadAttempts(): Attempts {
   try {
-    return new Set(JSON.parse(localStorage.getItem(ATTEMPTED_KEY) ?? "[]"));
+    localStorage.removeItem(LEGACY_KEY);
+    const raw = JSON.parse(localStorage.getItem(ATTEMPTS_KEY) ?? "{}");
+    return raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   } catch {
-    return new Set();
+    return {};
   }
 }
 
-function saveAttempted(ids: Set<number>) {
+function saveAttempts(a: Attempts) {
   try {
-    localStorage.setItem(ATTEMPTED_KEY, JSON.stringify([...ids]));
+    localStorage.setItem(ATTEMPTS_KEY, JSON.stringify(a));
   } catch {
     // Non-critical: we'd just retry next launch.
   }
 }
 
 /**
- * Enriches books one at a time in the background. Each book is attempted once (remembered
- * across launches) so books that genuinely lack a cover aren't re-parsed forever.
+ * Enriches books one at a time in the background. A book that parses is never re-parsed (so
+ * books that genuinely lack a cover aren't read on every launch); one that fails is retried on
+ * later launches, up to MAX_ATTEMPTS times, so transient failures don't stick.
  */
 export async function enrichLibrary(
   books: Book[],
@@ -94,20 +113,22 @@ export async function enrichLibrary(
   /** While true (a book is open in the reader), wait. Parsing PDFs concurrently can stall pdf.js. */
   isPaused: () => boolean = () => false,
 ) {
-  const attempted = loadAttempted();
-  const todo = books.filter((b) => needsEnrichment(b) && !attempted.has(b.id));
+  let attempts = loadAttempts();
+  const todo = books.filter((b) => needsEnrichment(b) && shouldAttempt(attempts, b.id));
   if (!todo.length) return;
   const { makeBook } = await import("foliate-js/view.js");
   for (const book of todo) {
     while (isPaused() && !signal.aborted) await new Promise((r) => setTimeout(r, 500));
     if (signal.aborted) return;
-    attempted.add(book.id);
-    saveAttempted(attempted);
+    attempts = recordStart(attempts, book.id);
+    saveAttempts(attempts);
     let parsed: FoliateBook | undefined;
     try {
       parsed = await makeBook(await api.readBookFile(book));
       const p = parsed;
       if (await fillGaps(book, metadataFromFoliate(p.metadata), () => p.getCover?.())) onChanged();
+      attempts = recordDone(attempts, book.id);
+      saveAttempts(attempts);
     } catch (e) {
       console.warn(`Couldn't read metadata for ${book.path}`, e);
     } finally {
