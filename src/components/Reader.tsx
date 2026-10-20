@@ -1,4 +1,4 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { collapse } from "foliate-js/epubcfi.js";
@@ -8,6 +8,7 @@ import {
   BookmarkCheck,
   ChevronLeft,
   ChevronRight,
+  FileWarning,
   Headphones,
   PanelLeft,
   Search,
@@ -19,7 +20,7 @@ import { useBookSearch } from "../hooks/useBookSearch";
 import { useReadAloud } from "../hooks/useReadAloud";
 import { api, type Annotation, type Book } from "../lib/api";
 import { dispatchAction, onAction, shortcutFor } from "../lib/actions";
-import { modKey } from "../lib/platform";
+import { modKey, revealLabel } from "../lib/platform";
 import type { ReaderSettings } from "../lib/settings";
 import {
   bookmarkOnPage,
@@ -31,6 +32,7 @@ import {
 } from "../reader/annotations";
 import type { BookMeta, Capabilities, ReaderEngine, ReaderLocation, TextSelection, TocItem } from "../reader/engine";
 import { fillGaps } from "../reader/enrich";
+import { describeOpenError, type OpenErrorInfo } from "../reader/errors";
 import { FoliateEngine } from "../reader/foliateEngine";
 import { defineUrl, wikipediaUrl } from "../reader/lookup";
 import { titleFromPath } from "../reader/metadata";
@@ -42,9 +44,9 @@ import { SearchPanel } from "./reader/SearchPanel";
 import { SelectionMenu } from "./reader/SelectionMenu";
 import { SettingsPanel } from "./SettingsPanel";
 import { TocPanel } from "./TocPanel";
-import { IconButton } from "./ui";
+import { Button, IconButton } from "./ui";
 
-type Status = { kind: "loading" } | { kind: "ready" } | { kind: "error"; message: string };
+type Status = { kind: "loading" } | { kind: "ready" } | { kind: "error"; info: OpenErrorInfo; message: string };
 type Popover = { id: number; rect: DOMRect; editing: boolean };
 
 const SAVE_DELAY_MS = 600;
@@ -151,7 +153,9 @@ export function Reader({
         setStatus({ kind: "ready" });
         fillGaps(book, m.metadata, m.getCover).catch(console.error);
       } catch (e) {
-        if (!cancelled) setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) });
+        if (cancelled) return;
+        console.error(`Couldn't open ${book.path}:`, e);
+        setStatus({ kind: "error", info: describeOpenError(e), message: e instanceof Error ? e.message : String(e) });
       }
     })();
 
@@ -513,12 +517,27 @@ export function Reader({
           </div>
         )}
         {status.kind === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg p-8 text-center">
-            <h2 className="font-serif text-lg">Couldn't open this book</h2>
-            <p className="max-w-md text-[13px] text-muted">{status.message}</p>
-            <button type="button" onClick={onClose} className="text-[13px] text-accent hover:underline">
-              Back to library
-            </button>
+          <div
+            role="alert"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg p-8 text-center"
+          >
+            <FileWarning size={28} className="text-muted" aria-hidden />
+            <h2 className="font-serif text-lg">{status.info.title}</h2>
+            <p className="max-w-md text-[13px] text-muted">{status.info.detail}</p>
+            <div className="mt-1 flex gap-2">
+              <Button variant="primary" onClick={onClose}>
+                Back to library
+              </Button>
+              {status.info.kind !== "missing" && (
+                <Button onClick={() => revealItemInDir(book.path).catch((e) => onError(String(e)))}>
+                  {revealLabel}
+                </Button>
+              )}
+            </div>
+            <details className="mt-3 max-w-md text-left text-[12px] text-muted">
+              <summary className="cursor-pointer select-none">Technical details</summary>
+              <p className="mt-1.5 font-mono break-all select-text">{status.message}</p>
+            </details>
           </div>
         )}
       </div>
