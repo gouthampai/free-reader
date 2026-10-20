@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { DEFAULT_SETTINGS, LIMITS, THEMES, type FontChoice, type ReaderSettings, type Theme } from "../lib/settings";
+import { onRovingKeyDown, rovingTabIndex } from "../lib/roving";
 import { FONT_STACKS, THEME_COLORS } from "../reader/readerCss";
 import { Segmented, Slider, Toggle } from "./ui";
 
@@ -29,13 +30,14 @@ export function SettingsPanel({
     <div className="w-72 space-y-4 p-4" role="dialog" aria-label="Reading settings">
       <section>
         <div className="mb-2 text-[12px] font-semibold tracking-wider text-muted uppercase">Theme</div>
-        <div className="flex gap-2" role="radiogroup" aria-label="Theme">
-          {THEMES.map((t) => (
+        <div className="flex gap-2" role="radiogroup" aria-label="Theme" onKeyDown={onRovingKeyDown}>
+          {THEMES.map((t, i) => (
             <button
               key={t}
               type="button"
               role="radio"
               aria-checked={settings.theme === t}
+              tabIndex={rovingTabIndex(settings.theme === t, i, true)}
               onClick={() => set("theme", t)}
               title={THEME_LABELS[t]}
               className={`flex h-12 flex-1 items-center justify-center rounded-lg border font-serif text-[14px] transition ${
@@ -53,13 +55,14 @@ export function SettingsPanel({
         <>
           <section className="space-y-2">
             <div className="text-[12px] font-semibold tracking-wider text-muted uppercase">Text</div>
-            <div role="radiogroup" aria-label="Font" className="grid grid-cols-3 gap-1">
-              {FONT_OPTIONS.map((f) => (
+            <div role="radiogroup" aria-label="Font" className="grid grid-cols-3 gap-1" onKeyDown={onRovingKeyDown}>
+              {FONT_OPTIONS.map((f, i) => (
                 <button
                   key={f.value}
                   type="button"
                   role="radio"
                   aria-checked={settings.font === f.value}
+                  tabIndex={rovingTabIndex(settings.font === f.value, i, true)}
                   title={f.title}
                   onClick={() => set("font", f.value)}
                   style={f.value === "publisher" ? undefined : { fontFamily: FONT_STACKS[f.value] }}

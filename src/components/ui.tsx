@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ComponentPropsWithRef, ReactNode } from "react";
+import { onRovingKeyDown, rovingTabIndex } from "../lib/roving";
 
 export function IconButton({
   label,
@@ -6,7 +7,7 @@ export function IconButton({
   className = "",
   children,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; active?: boolean; children: ReactNode }) {
+}: ComponentPropsWithRef<"button"> & { label: string; active?: boolean; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -53,13 +54,23 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-lg bg-surface-2 p-0.5">
-      {options.map((o) => (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={onRovingKeyDown}
+      className="flex rounded-lg bg-surface-2 p-0.5"
+    >
+      {options.map((o, i) => (
         <button
           key={o.value}
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          tabIndex={rovingTabIndex(
+            value === o.value,
+            i,
+            options.some((x) => x.value === value),
+          )}
           title={o.title}
           onClick={() => onChange(o.value)}
           className={`flex-1 rounded-md px-2 py-1.5 text-[12px] font-medium transition ${

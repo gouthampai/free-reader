@@ -66,6 +66,7 @@ export function Reader({
   initialSearch?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const sidebarButtonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -292,6 +293,8 @@ export function Reader({
           if (popover) setPopover(null);
           else if (selection) engine.clearSelection();
           else if (sidebar || settingsOpen) {
+            // Focus inside the closing (inert) panel would be lost; return it to the toggle.
+            if (sidebar) sidebarButtonRef.current?.focus();
             setSidebar(null);
             setSettingsOpen(false);
           } else onClose();
@@ -357,6 +360,7 @@ export function Reader({
           <ArrowLeft size={17} />
         </IconButton>
         <IconButton
+          ref={sidebarButtonRef}
           label="Contents and notes (T)"
           active={sidebar != null}
           onClick={() => (sidebar ? setSidebar(null) : openTab(lastTab))}
@@ -415,7 +419,11 @@ export function Reader({
         <ReaderSidebar
           open={sidebar != null}
           tab={sidebar ?? lastTab}
-          onTab={openTab}
+          onTab={(t) => {
+            // Switching tabs (click or arrow keys) keeps focus on the tab list.
+            setSidebar(t);
+            setLastTab(t);
+          }}
           noteCount={annotations.list.length}
         >
           {(sidebar ?? lastTab) === "contents" ? (
@@ -491,6 +499,10 @@ export function Reader({
         )}
       </div>
 
+      {/* Announces where you are after each page turn for screen reader users. */}
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {loc ? `${loc.chapter ? `${loc.chapter}, ` : ""}${percent}%` : ""}
+      </div>
       <footer className="flex h-10 shrink-0 items-center gap-3 px-4 text-[12px] text-muted">
         <span className="w-1/3 truncate">{loc?.chapter ?? ""}</span>
         <div className="relative flex flex-1 items-center">
@@ -505,6 +517,7 @@ export function Reader({
             disabled={!ready}
             dir={meta?.dir}
             list="section-ticks"
+            aria-valuetext={`${percent}%${loc?.chapter ? `, ${loc.chapter}` : ""}`}
             onChange={(e) => engine?.goToFraction(Number(e.target.value))}
           />
           <datalist id="section-ticks">
