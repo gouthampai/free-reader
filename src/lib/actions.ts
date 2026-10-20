@@ -17,6 +17,7 @@ export const ACTIONS = [
   "theme-light",
   "theme-sepia",
   "theme-dark",
+  "theme-contrast",
   "go-library",
   "bookmark",
 ] as const;

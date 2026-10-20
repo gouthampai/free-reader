@@ -58,6 +58,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item(app, "theme-light", "Light", None)?)
         .item(&item(app, "theme-sepia", "Sepia", None)?)
         .item(&item(app, "theme-dark", "Dark", None)?)
+        .item(&item(app, "theme-contrast", "High Contrast", None)?)
         .build()?;
 
     let mut view = SubmenuBuilder::new(app, "View")

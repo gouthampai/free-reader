@@ -1,7 +1,9 @@
 import { RotateCcw } from "lucide-react";
-import { DEFAULT_SETTINGS, LIMITS, type ReaderSettings } from "../lib/settings";
+import { DEFAULT_SETTINGS, LIMITS, THEMES, type ReaderSettings, type Theme } from "../lib/settings";
 import { THEME_COLORS } from "../reader/readerCss";
 import { Segmented, Slider, Toggle } from "./ui";
+
+const THEME_LABELS: Record<Theme, string> = { light: "Light", sepia: "Sepia", dark: "Dark", contrast: "High contrast" };
 
 export function SettingsPanel({
   settings,
@@ -20,19 +22,20 @@ export function SettingsPanel({
       <section>
         <div className="mb-2 text-[12px] font-semibold tracking-wider text-muted uppercase">Theme</div>
         <div className="flex gap-2" role="radiogroup" aria-label="Theme">
-          {(["light", "sepia", "dark"] as const).map((t) => (
+          {THEMES.map((t) => (
             <button
               key={t}
               type="button"
               role="radio"
               aria-checked={settings.theme === t}
               onClick={() => set("theme", t)}
-              className={`flex h-12 flex-1 items-center justify-center rounded-lg border font-serif text-[15px] capitalize transition ${
+              title={THEME_LABELS[t]}
+              className={`flex h-12 flex-1 items-center justify-center rounded-lg border font-serif text-[14px] transition ${
                 settings.theme === t ? "border-accent ring-2 ring-accent/30" : "border-border"
               }`}
               style={{ background: THEME_COLORS[t].bg, color: THEME_COLORS[t].fg }}
             >
-              {t}
+              {t === "contrast" ? "Contrast" : THEME_LABELS[t]}
             </button>
           ))}
         </div>

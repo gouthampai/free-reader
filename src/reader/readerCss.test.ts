@@ -21,7 +21,10 @@ describe("buildReaderCss", () => {
     expect(css).toContain("hyphens: manual");
   });
 
-  it("uses a dark color scheme for the dark theme", () => {
+  it("uses a dark color scheme for the dark and high-contrast themes", () => {
     expect(buildReaderCss({ ...DEFAULT_SETTINGS, theme: "dark" })).toContain("color-scheme: dark");
+    const contrast = buildReaderCss({ ...DEFAULT_SETTINGS, theme: "contrast" });
+    expect(contrast).toContain("color-scheme: dark");
+    expect(contrast).toContain("background: #000000 !important");
   });
 });

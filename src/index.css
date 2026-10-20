@@ -47,6 +47,21 @@
   color-scheme: dark;
 }
 
+/* High contrast: pure black and white, a vivid accent, and borders strong enough to see edges. */
+[data-theme="contrast"] {
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #262626;
+  --border: #ffffff;
+  --fg: #ffffff;
+  --fg-muted: #e6e6e6;
+  --accent: #ffd400;
+  --accent-fg: #000000;
+  --danger: #ff7a7a;
+  --shadow: 0 0 0 1px #ffffff;
+  color-scheme: dark;
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

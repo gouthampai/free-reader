@@ -10,7 +10,7 @@ import { useLibrary } from "./hooks/useLibrary";
 import { api, SUPPORTED_EXTENSIONS, type Book, type ImportSummary } from "./lib/api";
 import { loadPrefs, savePrefs, type LibraryPrefs } from "./lib/prefs";
 import { dispatchAction, onAction, shortcutFor } from "./lib/actions";
-import { loadSettings, saveSettings, stepFontSize, type ReaderSettings } from "./lib/settings";
+import { loadSettings, saveSettings, stepFontSize, type ReaderSettings, type Theme } from "./lib/settings";
 
 const SUMMARY_TIMEOUT_MS = 6000;
 
@@ -164,10 +164,8 @@ export default function App() {
           case "theme-light":
           case "theme-sepia":
           case "theme-dark":
-            setSettings((s) => ({
-              ...s,
-              theme: id === "theme-light" ? "light" : id === "theme-sepia" ? "sepia" : "dark",
-            }));
+          case "theme-contrast":
+            setSettings((s) => ({ ...s, theme: id.slice("theme-".length) as Theme }));
             return true;
           case "go-library":
             if (reading) closeReader();

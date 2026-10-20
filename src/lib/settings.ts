@@ -1,4 +1,5 @@
-export type Theme = "light" | "sepia" | "dark";
+export const THEMES = ["light", "sepia", "dark", "contrast"] as const;
+export type Theme = (typeof THEMES)[number];
 export type Flow = "paginated" | "scrolled";
 export type FontChoice = "publisher" | "serif" | "sans";
 
@@ -58,7 +59,7 @@ export function sanitizeSettings(raw: unknown): ReaderSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_SETTINGS;
   return {
-    theme: oneOf(r.theme, ["light", "sepia", "dark"] as const, d.theme),
+    theme: oneOf(r.theme, THEMES, d.theme),
     flow: oneOf(r.flow, ["paginated", "scrolled"] as const, d.flow),
     font: oneOf(r.font, ["publisher", "serif", "sans"] as const, d.font),
     fontSize: clamp(r.fontSize, LIMITS.fontSize, d.fontSize),

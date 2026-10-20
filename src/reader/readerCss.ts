@@ -5,6 +5,15 @@ export const THEME_COLORS: Record<Theme, { bg: string; fg: string; link: string 
   light: { bg: "#fbfaf7", fg: "#1f1d1a", link: "#2f5fa7" },
   sepia: { bg: "#f4ecd8", fg: "#3b2f20", link: "#8a4b14" },
   dark: { bg: "#17171a", fg: "#d9d6cf", link: "#8fb4ff" },
+  contrast: { bg: "#000000", fg: "#ffffff", link: "#ffd400" },
+};
+
+const SELECTION: Record<Theme, string> = {
+  light: "background: #b9d3ff;",
+  sepia: "background: #b9d3ff;",
+  dark: "background: #3d5a8a;",
+  // Inverted, so selected text stays maximally legible.
+  contrast: "background: #ffd400; color: #000000;",
 };
 
 export const FONT_STACKS: Record<Exclude<FontChoice, "publisher">, string> = {
@@ -15,6 +24,7 @@ export const FONT_STACKS: Record<Exclude<FontChoice, "publisher">, string> = {
 /** CSS injected into every section of the book to apply the user's reading preferences. */
 export function buildReaderCss(s: ReaderSettings): string {
   const c = THEME_COLORS[s.theme];
+  const isDark = s.theme === "dark" || s.theme === "contrast";
   const font =
     s.font === "publisher"
       ? ""
@@ -25,7 +35,7 @@ export function buildReaderCss(s: ReaderSettings): string {
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
-        color-scheme: ${s.theme === "dark" ? "dark" : "light"};
+        color-scheme: ${isDark ? "dark" : "light"};
         font-size: ${s.fontSize}px !important;
         color: ${c.fg} !important;
         background: ${c.bg} !important;
@@ -52,7 +62,7 @@ export function buildReaderCss(s: ReaderSettings): string {
     [align="justify"] { text-align: justify; }
     pre { white-space: pre-wrap !important; }
     ${s.theme === "dark" ? "img, svg { filter: brightness(0.9); }" : ""}
-    ::selection { background: ${s.theme === "dark" ? "#3d5a8a" : "#b9d3ff"}; }
+    ::selection { ${SELECTION[s.theme]} }
     aside[epub|type~="endnote"],
     aside[epub|type~="footnote"],
     aside[epub|type~="note"],
