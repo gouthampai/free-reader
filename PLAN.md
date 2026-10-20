@@ -59,11 +59,11 @@ Each format plugs in behind it, so the UI is identical across formats.
 - [x] Home screen with "Continue reading".
 
 ### Phase 3 — Reading features (2–3 weeks)
-- [ ] Multi-color highlights, notes, bookmarks; annotations panel.
-- [ ] In-book search; library-wide full-text search (SQLite FTS5).
-- [ ] Dictionary/Wikipedia lookup on selection (system dictionary on macOS).
-- [ ] Export annotations to Markdown/JSON.
-- [ ] PDF support via the second adapter.
+- [x] Multi-color highlights, notes, bookmarks; annotations panel.
+- [x] In-book search; library-wide full-text search (SQLite FTS5).
+- [x] Dictionary/Wikipedia lookup on selection (system dictionary on macOS).
+- [x] Export annotations to Markdown/JSON.
+- [x] PDF support (via foliate-js's pdf.js integration, behind the same `ReaderEngine` interface).
 
 ### Phase 4 — Polish (2 weeks)
 - [ ] Smooth page-turn animations, instant startup, lazy cover loading.
@@ -101,6 +101,14 @@ Each format plugs in behind it, so the UI is identical across formats.
 - Metadata extraction in Rust covers EPUB only. Other formats are filled in by the frontend via foliate-js after import, one book at a time in the background.
   If large MOBI libraries make that slow, move MOBI/FB2 parsing to Rust.
 - Edited metadata lives only in the database; it's never written back to the book file.
+- Phase 3 is implemented. Verified in the running app: PDF import/open/cover/progress from the production bundle,
+  background full-text indexing of real EPUBs with ranked snippets, and highlights drawing without errors.
+  The selection toolbar, highlight popover, notes/search panels and export still need manual QA.
+- PDFs and comics (fixed layout) support reading, contents, bookmarks and progress, but not highlights or
+  in-book search: foliate's fixed-layout renderer has no overlay or text layer search yet.
+- The full-text index covers EPUB only. Other formats would need text extraction (Rust for MOBI/FB2, or via foliate).
+- Background metadata enrichment pauses while a book is open: parsing a PDF concurrently with the reader stalls pdf.js.
+- "Define" opens the macOS Dictionary app; Windows has no system dictionary, so it opens Wiktionary.
 - Real-world EPUB check: `FR_CORPUS=/path/to/epubs cargo test corpus -- --ignored --nocapture` (in `src-tauri`).
 
 ## 6. Data model
@@ -110,4 +118,5 @@ Migrations live in `src-tauri/src/db.rs` and are tracked with `PRAGMA user_versi
 - `books(id, hash, path, managed, format, title, authors, series, series_index, language, publisher, description, cover_path, file_size, added_at, last_opened_at)`
 - `progress(book_id, cfi, fraction, updated_at)`
 - `collections(id, name)`, `collection_books(collection_id, book_id, added_at)`
-- Planned: `annotations(id, book_id, kind, cfi, text_snippet, color, note, created_at, updated_at)`
+- `annotations(id, book_id, kind, cfi, text, note, color, chapter, created_at, updated_at)`
+- `book_sections(id, book_id, section, text)` + `book_text` (FTS5 external-content index over it, synced by triggers)

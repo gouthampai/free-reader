@@ -7,7 +7,8 @@ See [PLAN.md](PLAN.md) for the roadmap.
 
 ## Supported formats
 
-EPUB, MOBI/AZW/AZW3, FB2/FBZ and CBZ. PDF support is planned (Phase 3). DRM-protected books are not supported.
+EPUB, MOBI/AZW/AZW3, FB2/FBZ, CBZ and PDF. Highlights and in-book search work for reflowable formats
+(not PDF or comics). DRM-protected books are not supported.
 
 ## Development
 
@@ -44,6 +45,9 @@ src/
   reader/engine.ts        ReaderEngine interface — the UI talks only to this
   reader/foliateEngine.ts foliate-js implementation of ReaderEngine
   reader/enrich.ts        fills metadata/covers for non-EPUB formats via foliate-js
+  reader/annotations.ts   highlight colors, CFI ordering, Markdown/JSON export
+  reader/lookup.ts        dictionary/Wikipedia URLs, floating toolbar placement
+  components/reader/      selection toolbar, highlight popover, notes & search panels
   reader/readerCss.ts     user reading preferences → CSS injected into the book
   lib/api.ts              typed wrappers for Tauri commands
   lib/library.ts          sorting, filtering, grouping (authors/series)
@@ -51,7 +55,9 @@ src/
 src-tauri/src/
   commands.rs             Tauri commands
   library.rs              import pipeline: discover, hash/dedupe, copy or link
-  epub.rs                 fast EPUB metadata + cover extraction
+  epub.rs                 fast EPUB metadata, cover and text extraction
+  annotations.rs          highlights, notes, bookmarks
+  fulltext.rs             FTS5 index, background indexer thread, search
   covers.rs               cover thumbnails (served via the asset protocol)
   db.rs                   SQLite schema, migrations and queries
 vendor/foliate-js/        vendored rendering engine (MIT), pinned to 78914ae
@@ -69,7 +75,8 @@ in `~/Library/Application Support/com.freereader.app/` on macOS and
 | ← / → | Previous / next page |
 | Space, PageDown / Shift+Space, PageUp | Next / previous page (paginated) |
 | T | Toggle table of contents |
+| B | Bookmark / unbookmark the current page |
+| ⌘/Ctrl + F | Search the book (in the reader) or the library |
 | ⌘/Ctrl + `=` / `-` | Larger / smaller text |
 | ⌘/Ctrl + O | Add books |
-| ⌘/Ctrl + F | Search the library |
 | Esc | Close panel, then back to library |
