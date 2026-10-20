@@ -12,6 +12,7 @@ import {
   type BookFilter,
   type StatusFilter,
 } from "../../lib/library";
+import { onAction } from "../../lib/actions";
 import type { LibraryPrefs } from "../../lib/prefs";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -68,17 +69,16 @@ export function Library({
     mainRef.current?.scrollTo({ top: 0 });
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        e.preventDefault();
+  useEffect(
+    () =>
+      onAction((id) => {
+        if (id !== "find") return;
         searchRef.current?.focus();
         searchRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+        return true;
+      }),
+    [],
+  );
 
   // A collection that was deleted elsewhere shouldn't leave us on a dead view.
   useEffect(() => {

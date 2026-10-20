@@ -39,6 +39,12 @@ export const LIMITS = {
   margin: { min: 2, max: 16, step: 1 },
 } as const;
 
+/** Changes the font size by `delta` px, within limits. */
+export const stepFontSize = (s: ReaderSettings, delta: number): ReaderSettings => ({
+  ...s,
+  fontSize: Math.min(LIMITS.fontSize.max, Math.max(LIMITS.fontSize.min, s.fontSize + delta)),
+});
+
 const KEY = "free-reader:settings:v1";
 
 const clamp = (v: unknown, { min, max }: { min: number; max: number }, fallback: number) =>

@@ -7,8 +7,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAnnotations } from "../hooks/useAnnotations";
 import { useBookSearch } from "../hooks/useBookSearch";
 import { api, type Annotation, type Book } from "../lib/api";
+import { dispatchAction, onAction, shortcutFor } from "../lib/actions";
 import { modKey } from "../lib/platform";
-import { LIMITS, type ReaderSettings } from "../lib/settings";
+import type { ReaderSettings } from "../lib/settings";
 import {
   bookmarkOnPage,
   colorFill,
@@ -264,21 +265,7 @@ export function Reader({
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
       if (!engine || e.defaultPrevented || isTyping(e)) return;
-      const mod = e.metaKey || e.ctrlKey;
-      const fontStep = (delta: number) => {
-        e.preventDefault();
-        const s = settingsRef.current;
-        const fontSize = Math.min(LIMITS.fontSize.max, Math.max(LIMITS.fontSize.min, s.fontSize + delta));
-        onSettingsChange({ ...s, fontSize });
-      };
-      if (mod && (e.key === "=" || e.key === "+")) return fontStep(1);
-      if (mod && e.key === "-") return fontStep(-1);
-      if (mod && e.key === "f") {
-        e.preventDefault();
-        if (engine.capabilities.search) openTab("search");
-        return;
-      }
-      if (mod || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       const scrolled = settingsRef.current.flow === "scrolled";
       switch (e.key) {
         case "ArrowLeft":
@@ -318,17 +305,39 @@ export function Reader({
           break;
       }
     },
-    [engine, onClose, onSettingsChange, openTab, popover, selection, sidebar, settingsOpen, toggleBookmark],
+    [engine, onClose, openTab, popover, selection, sidebar, settingsOpen, toggleBookmark],
   );
 
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
-    const off = engine?.onKeydown(handleKey);
+    // Key presses inside the book's frame never reach the window, so map app shortcuts here too.
+    const off = engine?.onKeydown((e) => {
+      const id = shortcutFor(e);
+      if (id) {
+        e.preventDefault();
+        dispatchAction(id);
+      } else handleKey(e);
+    });
     return () => {
       window.removeEventListener("keydown", handleKey);
       off?.();
     };
   }, [handleKey, engine]);
+
+  useEffect(
+    () =>
+      onAction((id) => {
+        if (id === "find") {
+          if (engine?.capabilities.search) openTab("search");
+          return true;
+        }
+        if (id === "bookmark") {
+          void toggleBookmark();
+          return true;
+        }
+      }),
+    [engine, openTab, toggleBookmark],
+  );
 
   const title = meta?.title || book.title || titleFromPath(book.path);
   const percent = Math.round((loc?.fraction ?? book.progress?.fraction ?? 0) * 100);

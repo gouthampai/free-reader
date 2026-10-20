@@ -6,6 +6,7 @@ mod epub;
 mod error;
 mod fulltext;
 mod library;
+mod menu;
 
 use commands::AppState;
 use std::sync::Mutex;
@@ -31,6 +32,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .menu(menu::build)
+        .on_menu_event(menu::handle)
         .setup(|app| {
             // The frontend shows the (initially hidden) window after its first paint. If it fails
             // to load, show the window anyway so the app never looks like it didn't start.

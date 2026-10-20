@@ -8,7 +8,8 @@ import { Reader } from "./components/Reader";
 import { useLibrary } from "./hooks/useLibrary";
 import { api, SUPPORTED_EXTENSIONS, type Book, type ImportSummary } from "./lib/api";
 import { loadPrefs, savePrefs, type LibraryPrefs } from "./lib/prefs";
-import { loadSettings, saveSettings, type ReaderSettings } from "./lib/settings";
+import { dispatchAction, onAction, shortcutFor } from "./lib/actions";
+import { loadSettings, saveSettings, stepFontSize, type ReaderSettings } from "./lib/settings";
 
 const SUMMARY_TIMEOUT_MS = 6000;
 
@@ -119,21 +120,54 @@ export default function App() {
     };
   }, [addPaths]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "o") {
-        e.preventDefault();
-        addFiles();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [addFiles]);
-
   const closeReader = useCallback(() => {
     setCurrent(null);
     refresh();
   }, [refresh]);
+
+  // Shortcuts mirror the native menu; the dispatcher drops the duplicate when both fire.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const id = shortcutFor(e);
+      if (id) {
+        e.preventDefault();
+        dispatchAction(id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const reading = current != null;
+  useEffect(
+    () =>
+      onAction((id) => {
+        switch (id) {
+          case "add-books":
+            void addFiles();
+            return true;
+          case "add-folder":
+            void addFolder();
+            return true;
+          case "text-larger":
+          case "text-smaller":
+            setSettings((s) => stepFontSize(s, id === "text-larger" ? 1 : -1));
+            return true;
+          case "theme-light":
+          case "theme-sepia":
+          case "theme-dark":
+            setSettings((s) => ({
+              ...s,
+              theme: id === "theme-light" ? "light" : id === "theme-sepia" ? "sepia" : "dark",
+            }));
+            return true;
+          case "go-library":
+            if (reading) closeReader();
+            return true;
+        }
+      }),
+    [addFiles, addFolder, closeReader, reading],
+  );
 
   return (
     <>

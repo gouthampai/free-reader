@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, LIMITS, sanitizeSettings } from "./settings";
+import { DEFAULT_SETTINGS, LIMITS, sanitizeSettings, stepFontSize } from "./settings";
 
 describe("sanitizeSettings", () => {
   it("returns defaults for missing or malformed input", () => {
@@ -15,6 +15,12 @@ describe("sanitizeSettings", () => {
     expect(s.fontSize).toBe(LIMITS.fontSize.max);
     expect(s.lineHeight).toBe(LIMITS.lineHeight.min);
     expect(s.margin).toBe(8);
+  });
+
+  it("steps the font size within limits", () => {
+    expect(stepFontSize(DEFAULT_SETTINGS, 2).fontSize).toBe(DEFAULT_SETTINGS.fontSize + 2);
+    expect(stepFontSize({ ...DEFAULT_SETTINGS, fontSize: LIMITS.fontSize.max }, 1).fontSize).toBe(LIMITS.fontSize.max);
+    expect(stepFontSize({ ...DEFAULT_SETTINGS, fontSize: LIMITS.fontSize.min }, -1).fontSize).toBe(LIMITS.fontSize.min);
   });
 
   it("rejects non-finite numbers", () => {
