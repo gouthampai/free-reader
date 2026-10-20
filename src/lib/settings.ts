@@ -1,7 +1,8 @@
 export const THEMES = ["light", "sepia", "dark", "contrast"] as const;
 export type Theme = (typeof THEMES)[number];
 export type Flow = "paginated" | "scrolled";
-export type FontChoice = "publisher" | "serif" | "sans";
+export const FONTS = ["publisher", "serif", "sans", "atkinson", "dyslexic"] as const;
+export type FontChoice = (typeof FONTS)[number];
 
 export interface ReaderSettings {
   theme: Theme;
@@ -61,7 +62,7 @@ export function sanitizeSettings(raw: unknown): ReaderSettings {
   return {
     theme: oneOf(r.theme, THEMES, d.theme),
     flow: oneOf(r.flow, ["paginated", "scrolled"] as const, d.flow),
-    font: oneOf(r.font, ["publisher", "serif", "sans"] as const, d.font),
+    font: oneOf(r.font, FONTS, d.font),
     fontSize: clamp(r.fontSize, LIMITS.fontSize, d.fontSize),
     lineHeight: clamp(r.lineHeight, LIMITS.lineHeight, d.lineHeight),
     maxWidth: clamp(r.maxWidth, LIMITS.maxWidth, d.maxWidth),

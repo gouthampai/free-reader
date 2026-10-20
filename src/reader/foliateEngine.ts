@@ -14,6 +14,7 @@ import type {
 } from "./engine";
 import { metadataFromFoliate } from "./enrich";
 import { formatContributors, formatLanguageMap } from "./metadata";
+import { fontFaceCss } from "./fonts";
 import { buildReaderCss } from "./readerCss";
 
 type Listeners<T extends unknown[]> = Set<(...args: T) => void>;
@@ -44,6 +45,7 @@ export class FoliateEngine implements ReaderEngine {
   /** Highlights by CFI. Foliate asks us to draw them as their sections load. */
   #marks = new Map<string, AnnotationMark>();
   #docs = new Set<Document>();
+  #fontFaces = fontFaceCss();
   /** Page turns slide unless the OS asks for reduced motion. */
   #reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   #onMotionChange = () => this.#applyMotion();
@@ -195,7 +197,7 @@ export class FoliateEngine implements ReaderEngine {
     r.setAttribute("max-inline-size", `${s.maxWidth}px`);
     r.setAttribute("max-column-count", s.spread ? "2" : "1");
     this.#applyMotion();
-    r.setStyles?.(buildReaderCss(s));
+    r.setStyles?.(buildReaderCss(s, this.#fontFaces));
   }
 
   #applyMotion() {

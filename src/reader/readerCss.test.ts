@@ -10,6 +10,16 @@ describe("buildReaderCss", () => {
     expect(css).toContain("color-scheme: light");
   });
 
+  it("includes bundled font faces only when a bundled font is chosen", () => {
+    const faces = '@font-face { font-family: "OpenDyslexic"; }';
+    expect(buildReaderCss(DEFAULT_SETTINGS, faces)).not.toContain(faces);
+    const css = buildReaderCss({ ...DEFAULT_SETTINGS, font: "dyslexic" }, faces);
+    expect(css).toContain(faces);
+    expect(css).toContain(FONT_STACKS.dyslexic);
+    // @namespace must stay the first rule for the stylesheet to be valid.
+    expect(css.trim().startsWith("@namespace")).toBe(true);
+  });
+
   it("leaves publisher fonts alone unless overridden", () => {
     expect(buildReaderCss(DEFAULT_SETTINGS)).not.toContain(FONT_STACKS.serif);
     expect(buildReaderCss({ ...DEFAULT_SETTINGS, font: "serif" })).toContain(FONT_STACKS.serif);

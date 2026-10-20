@@ -1,9 +1,17 @@
 import { RotateCcw } from "lucide-react";
-import { DEFAULT_SETTINGS, LIMITS, THEMES, type ReaderSettings, type Theme } from "../lib/settings";
-import { THEME_COLORS } from "../reader/readerCss";
+import { DEFAULT_SETTINGS, LIMITS, THEMES, type FontChoice, type ReaderSettings, type Theme } from "../lib/settings";
+import { FONT_STACKS, THEME_COLORS } from "../reader/readerCss";
 import { Segmented, Slider, Toggle } from "./ui";
 
 const THEME_LABELS: Record<Theme, string> = { light: "Light", sepia: "Sepia", dark: "Dark", contrast: "High contrast" };
+
+const FONT_OPTIONS: { value: FontChoice; label: string; title: string }[] = [
+  { value: "publisher", label: "Original", title: "Use the book's fonts" },
+  { value: "serif", label: "Serif", title: "Serif" },
+  { value: "sans", label: "Sans", title: "Sans-serif" },
+  { value: "atkinson", label: "Hyperlegible", title: "Atkinson Hyperlegible, designed for low-vision readers" },
+  { value: "dyslexic", label: "Dyslexic", title: "OpenDyslexic, designed for readers with dyslexia" },
+];
 
 export function SettingsPanel({
   settings,
@@ -45,16 +53,24 @@ export function SettingsPanel({
         <>
           <section className="space-y-2">
             <div className="text-[12px] font-semibold tracking-wider text-muted uppercase">Text</div>
-            <Segmented
-              label="Font"
-              value={settings.font}
-              onChange={(v) => set("font", v)}
-              options={[
-                { value: "publisher", label: "Original", title: "Use the book's fonts" },
-                { value: "serif", label: <span className="font-serif">Serif</span> },
-                { value: "sans", label: "Sans" },
-              ]}
-            />
+            <div role="radiogroup" aria-label="Font" className="grid grid-cols-3 gap-1">
+              {FONT_OPTIONS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.font === f.value}
+                  title={f.title}
+                  onClick={() => set("font", f.value)}
+                  style={f.value === "publisher" ? undefined : { fontFamily: FONT_STACKS[f.value] }}
+                  className={`h-9 truncate rounded-md px-1.5 text-[12px] transition ${
+                    settings.font === f.value ? "bg-accent text-accent-fg" : "bg-surface-2 text-muted hover:text-fg"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
             <Slider
               label="Size"
               {...LIMITS.fontSize}

@@ -1,4 +1,5 @@
 import type { FontChoice, ReaderSettings, Theme } from "../lib/settings";
+import { ATKINSON, OPEN_DYSLEXIC } from "./fonts";
 
 /** Colors used inside the book frame. Keep in sync with the app tokens in index.css. */
 export const THEME_COLORS: Record<Theme, { bg: string; fg: string; link: string }> = {
@@ -16,13 +17,20 @@ const SELECTION: Record<Theme, string> = {
   contrast: "background: #ffd400; color: #000000;",
 };
 
+const SYSTEM_SANS = `-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif`;
+
 export const FONT_STACKS: Record<Exclude<FontChoice, "publisher">, string> = {
   serif: `"Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif`,
-  sans: `-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif`,
+  sans: SYSTEM_SANS,
+  atkinson: `"${ATKINSON}", ${SYSTEM_SANS}`,
+  dyslexic: `"${OPEN_DYSLEXIC}", ${SYSTEM_SANS}`,
 };
 
-/** CSS injected into every section of the book to apply the user's reading preferences. */
-export function buildReaderCss(s: ReaderSettings): string {
+/**
+ * CSS injected into every section of the book to apply the user's reading preferences.
+ * `fontFaces` holds @font-face rules for the bundled fonts (see fonts.ts).
+ */
+export function buildReaderCss(s: ReaderSettings, fontFaces = ""): string {
   const c = THEME_COLORS[s.theme];
   const isDark = s.theme === "dark" || s.theme === "contrast";
   const font =
@@ -34,6 +42,7 @@ export function buildReaderCss(s: ReaderSettings): string {
     }`;
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
+    ${s.font === "atkinson" || s.font === "dyslexic" ? fontFaces : ""}
     html {
         color-scheme: ${isDark ? "dark" : "light"};
         font-size: ${s.fontSize}px !important;
