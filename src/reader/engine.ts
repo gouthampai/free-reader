@@ -3,7 +3,7 @@ import type { ReaderSettings } from "../lib/settings";
 
 /**
  * Format-agnostic reader contract. The UI talks only to this interface;
- * each format (foliate-js for EPUB/MOBI/FB2/CBZ, PDF.js later) implements it.
+ * each format family implements it (today: foliate-js for EPUB/MOBI/FB2/CBZ/PDF).
  */
 
 export interface TocItem {
@@ -35,11 +35,41 @@ export interface ReaderLocation {
   location?: { current: number; total: number };
 }
 
+/** What the open book supports; fixed-layout books (PDF, comics) can't be highlighted or reflowed. */
+export interface Capabilities {
+  annotations: boolean;
+  search: boolean;
+  /** Text settings (font, size, spacing, scroll mode) apply. */
+  reflowable: boolean;
+}
+
+export interface TextSelection {
+  cfi: string;
+  text: string;
+  /** Rect of the selection's first line, in viewport coordinates, for placing a toolbar. */
+  rect: DOMRect;
+}
+
+export interface AnnotationMark {
+  cfi: string;
+  /** CSS fill color. */
+  color: string;
+}
+
+export interface SearchMatch {
+  cfi: string;
+  excerpt: { pre: string; match: string; post: string };
+}
+
+export type SearchEvent =
+  { kind: "progress"; fraction: number } | { kind: "group"; label: string; matches: SearchMatch[] } | { kind: "done" };
+
 export interface ReaderEngine {
   open(file: File, opts?: { initialCfi?: string; settings?: ReaderSettings }): Promise<BookMeta>;
   readonly toc: TocItem[];
   /** Section boundaries as fractions (0..1), for progress bar tick marks. */
   readonly sectionFractions: number[];
+  readonly capabilities: Capabilities;
   goTo(target: string): Promise<void>;
   goToFraction(fraction: number): Promise<void>;
   /** Visual left/right navigation, respecting the book's reading direction. */
@@ -51,5 +81,17 @@ export interface ReaderEngine {
   onRelocate(cb: (loc: ReaderLocation) => void): () => void;
   /** Key events from inside the book's frames, which don't bubble to the window. */
   onKeydown(cb: (e: KeyboardEvent) => void): () => void;
+  /** Fires when the user finishes selecting text (null when the selection is cleared). */
+  onSelection(cb: (sel: TextSelection | null) => void): () => void;
+  clearSelection(): void;
+  /** Replaces the set of drawn highlights. */
+  setAnnotations(marks: AnnotationMark[]): void;
+  /** Fires when the user clicks an existing highlight. */
+  onAnnotationClick(cb: (cfi: string, rect: DOMRect) => void): () => void;
+  /** Text of the visible page, e.g. for bookmark excerpts. */
+  visibleText(): string;
+  /** Searches the whole book, streaming results chapter by chapter. Break out of the loop to cancel. */
+  search(query: string): AsyncGenerator<SearchEvent>;
+  clearSearch(): void;
   destroy(): void;
 }
