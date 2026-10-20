@@ -438,3 +438,41 @@ pub(crate) mod tests {
         assert_eq!(resolve_href("content.opf", "./x.png#frag"), "x.png");
     }
 }
+
+/// Runs the extractor over a folder of real-world EPUBs and prints what it found:
+/// `FR_CORPUS=/path/to/epubs cargo test corpus -- --ignored --nocapture`
+#[cfg(test)]
+mod corpus {
+    #[test]
+    #[ignore = "needs FR_CORPUS pointing at a folder of EPUBs"]
+    fn corpus() {
+        let dir = std::env::var("FR_CORPUS").expect("set FR_CORPUS");
+        let mut failures = 0;
+        for entry in walkdir::WalkDir::new(dir).into_iter().flatten() {
+            let p = entry.path();
+            if p.extension()
+                .is_none_or(|e| !e.eq_ignore_ascii_case("epub"))
+            {
+                continue;
+            }
+            match super::extract(std::io::BufReader::new(std::fs::File::open(p).unwrap())) {
+                Ok(x) => println!(
+                    "{}\n  title={:?} authors={:?} lang={:?} series={:?} #{:?}\n  publisher={:?} cover={:?}",
+                    p.display(),
+                    x.meta.title,
+                    x.meta.authors,
+                    x.meta.language,
+                    x.meta.series,
+                    x.meta.series_index,
+                    x.meta.publisher,
+                    x.cover.map(|c| c.len())
+                ),
+                Err(e) => {
+                    failures += 1;
+                    println!("{}\n  ERROR {e}", p.display());
+                }
+            }
+        }
+        assert_eq!(failures, 0);
+    }
+}
