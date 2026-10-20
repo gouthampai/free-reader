@@ -79,12 +79,13 @@ export interface IndexStatus {
   indexed: number;
 }
 
-export const SUPPORTED_EXTENSIONS = ["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz"];
+export const SUPPORTED_EXTENSIONS = ["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz", "pdf"];
 
 const MIME: Record<string, string> = {
   epub: "application/epub+zip",
   cbz: "application/vnd.comicbook+zip",
   fb2: "application/x-fictionbook+xml",
+  pdf: "application/pdf",
 };
 
 export const coverUrl = (book: Book) => (book.coverPath ? convertFileSrc(book.coverPath) : null);

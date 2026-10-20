@@ -3,13 +3,47 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
+import { cpSync } from "node:fs";
 import process from "node:process";
+import type { Plugin } from "vite";
 
 const host = process.env.TAURI_DEV_HOST;
 
+/**
+ * foliate-js loads PDF.js's worker, fonts, cmaps and CSS at runtime via
+ * `new URL("vendor/pdfjs/…", import.meta.url)`. After bundling, that resolves next to the
+ * chunk in dist/assets, so copy the files there. (Dev serves them from vendor/ directly.)
+ */
+function copyPdfjsAssets(): Plugin {
+  return {
+    name: "copy-pdfjs-assets",
+    apply: "build",
+    enforce: "pre",
+    // Vite rewrites `new URL(`…${x}`, import.meta.url)` into an import.meta.glob it can't
+    // resolve here (and leaves broken in the output). Concatenation is left alone.
+    transform(code, id) {
+      if (!id.endsWith("/foliate-js/pdf.js")) return;
+      const from = "new URL(`vendor/pdfjs/${path}`, import.meta.url)";
+      if (!code.includes(from)) this.error("foliate-js pdf.js changed; update copyPdfjsAssets");
+      return code.replace(from, 'new URL("vendor/pdfjs/" + path, import.meta.url)');
+    },
+    writeBundle(options) {
+      const outDir = options.dir ?? "dist";
+      cpSync(
+        fileURLToPath(new URL("./vendor/foliate-js/vendor/pdfjs", import.meta.url)),
+        `${outDir}/assets/vendor/pdfjs`,
+        {
+          recursive: true,
+          filter: (src) => !src.endsWith(".map"),
+        },
+      );
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), copyPdfjsAssets()],
 
   resolve: {
     alias: {

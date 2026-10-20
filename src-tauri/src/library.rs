@@ -11,7 +11,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-pub const SUPPORTED_FORMATS: &[&str] = &["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz"];
+pub const SUPPORTED_FORMATS: &[&str] = &["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz", "pdf"];
 
 /// Where the library keeps its own files.
 #[derive(Debug, Clone)]
