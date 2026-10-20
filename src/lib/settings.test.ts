@@ -23,6 +23,15 @@ describe("sanitizeSettings", () => {
     expect(stepFontSize({ ...DEFAULT_SETTINGS, fontSize: LIMITS.fontSize.min }, -1).fontSize).toBe(LIMITS.fontSize.min);
   });
 
+  it("validates read-aloud settings", () => {
+    expect(sanitizeSettings({ speechRate: 9, speechVoice: "com.apple.voice.Samantha" })).toMatchObject({
+      speechRate: LIMITS.speechRate.max,
+      speechVoice: "com.apple.voice.Samantha",
+    });
+    expect(sanitizeSettings({ speechVoice: 42 }).speechVoice).toBeNull();
+    expect(sanitizeSettings({ speechVoice: "" }).speechVoice).toBeNull();
+  });
+
   it("rejects non-finite numbers", () => {
     expect(sanitizeSettings({ fontSize: Number.NaN }).fontSize).toBe(DEFAULT_SETTINGS.fontSize);
   });

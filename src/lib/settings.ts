@@ -19,6 +19,10 @@ export interface ReaderSettings {
   hyphenate: boolean;
   /** Allow two-page spreads on wide windows (paginated only). */
   spread: boolean;
+  /** Read-aloud speed (1 = normal). */
+  speechRate: number;
+  /** Read-aloud voice (SpeechSynthesisVoice.voiceURI); null picks one for the book's language. */
+  speechVoice: string | null;
 }
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
@@ -32,6 +36,8 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
   justify: true,
   hyphenate: true,
   spread: true,
+  speechRate: 1,
+  speechVoice: null,
 };
 
 export const LIMITS = {
@@ -39,6 +45,7 @@ export const LIMITS = {
   lineHeight: { min: 1.1, max: 2.2, step: 0.1 },
   maxWidth: { min: 480, max: 1200, step: 40 },
   margin: { min: 2, max: 16, step: 1 },
+  speechRate: { min: 0.5, max: 2, step: 0.25 },
 } as const;
 
 /** Changes the font size by `delta` px, within limits. */
@@ -70,6 +77,8 @@ export function sanitizeSettings(raw: unknown): ReaderSettings {
     justify: typeof r.justify === "boolean" ? r.justify : d.justify,
     hyphenate: typeof r.hyphenate === "boolean" ? r.hyphenate : d.hyphenate,
     spread: typeof r.spread === "boolean" ? r.spread : d.spread,
+    speechRate: clamp(r.speechRate, LIMITS.speechRate, d.speechRate),
+    speechVoice: typeof r.speechVoice === "string" && r.speechVoice ? r.speechVoice : null,
   };
 }
 

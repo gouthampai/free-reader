@@ -2,10 +2,21 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeTextFile } from "@tauri-apps/plugin-fs";
 import { collapse } from "foliate-js/epubcfi.js";
-import { ArrowLeft, Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, PanelLeft, Search, Type } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark,
+  BookmarkCheck,
+  ChevronLeft,
+  ChevronRight,
+  Headphones,
+  PanelLeft,
+  Search,
+  Type,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAnnotations } from "../hooks/useAnnotations";
 import { useBookSearch } from "../hooks/useBookSearch";
+import { useReadAloud } from "../hooks/useReadAloud";
 import { api, type Annotation, type Book } from "../lib/api";
 import { dispatchAction, onAction, shortcutFor } from "../lib/actions";
 import { modKey } from "../lib/platform";
@@ -25,6 +36,7 @@ import { defineUrl, wikipediaUrl } from "../reader/lookup";
 import { titleFromPath } from "../reader/metadata";
 import { AnnotationPopover } from "./reader/AnnotationPopover";
 import { NotesPanel } from "./reader/NotesPanel";
+import { ReadAloudBar } from "./reader/ReadAloudBar";
 import { ReaderSidebar, type SidebarTab } from "./reader/ReaderSidebar";
 import { SearchPanel } from "./reader/SearchPanel";
 import { SelectionMenu } from "./reader/SelectionMenu";
@@ -89,6 +101,8 @@ export function Reader({
   listRef.current = annotations.list;
   const search = useBookSearch(engine);
   const caps = engine?.capabilities ?? NO_CAPABILITIES;
+  const speech = useReadAloud(engine, settings.speechRate, settings.speechVoice);
+  const { state: speechState, stop: stopSpeech } = speech;
 
   const flash = useCallback((message: string) => setNotice(message), []);
   useEffect(() => {
@@ -291,6 +305,7 @@ export function Reader({
           break;
         case "Escape":
           if (popover) setPopover(null);
+          else if (speechState !== "idle") stopSpeech();
           else if (selection) engine.clearSelection();
           else if (sidebar || settingsOpen) {
             // Focus inside the closing (inert) panel would be lost; return it to the toggle.
@@ -308,7 +323,7 @@ export function Reader({
           break;
       }
     },
-    [engine, onClose, openTab, popover, selection, sidebar, settingsOpen, toggleBookmark],
+    [engine, onClose, openTab, popover, selection, sidebar, settingsOpen, speechState, stopSpeech, toggleBookmark],
   );
 
   useEffect(() => {
@@ -376,6 +391,15 @@ export function Reader({
         {caps.search && (
           <IconButton label={`Search (${modKey}F)`} active={sidebar === "search"} onClick={() => openTab("search")}>
             <Search size={16} />
+          </IconButton>
+        )}
+        {speech.available && (
+          <IconButton
+            label={speech.state === "playing" ? "Pause reading aloud" : "Read aloud"}
+            active={speech.state !== "idle"}
+            onClick={speech.toggle}
+          >
+            <Headphones size={16} />
           </IconButton>
         )}
         <IconButton
@@ -570,10 +594,25 @@ export function Reader({
         />
       )}
 
+      {speech.state !== "idle" && (
+        <ReadAloudBar
+          state={speech.state}
+          rate={settings.speechRate}
+          voiceURI={settings.speechVoice}
+          voices={speech.voices}
+          bookLanguage={meta?.language ?? book.language}
+          onToggle={speech.toggle}
+          onSkip={speech.skip}
+          onStop={speech.stop}
+          onRate={(speechRate) => onSettingsChange({ ...settingsRef.current, speechRate })}
+          onVoice={(speechVoice) => onSettingsChange({ ...settingsRef.current, speechVoice })}
+        />
+      )}
+
       {notice && (
         <div
           role="status"
-          className="pointer-events-none fixed bottom-14 left-1/2 z-50 -translate-x-1/2 animate-fade-in rounded-full bg-fg px-3.5 py-1.5 text-[12px] font-medium text-bg shadow-panel"
+          className={`pointer-events-none fixed ${speech.state !== "idle" ? "bottom-28" : "bottom-14"} left-1/2 z-50 -translate-x-1/2 animate-fade-in rounded-full bg-fg px-3.5 py-1.5 text-[12px] font-medium text-bg shadow-panel`}
         >
           {notice}
         </div>
