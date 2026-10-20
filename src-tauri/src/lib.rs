@@ -4,6 +4,7 @@ mod covers;
 mod db;
 mod epub;
 mod error;
+mod fulltext;
 mod library;
 
 use commands::AppState;
@@ -18,7 +19,9 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
-            let conn = db::open(&dir.join("library.db"))?;
+            let db_path = dir.join("library.db");
+            let conn = db::open(&db_path)?;
+            let indexer = fulltext::spawn_indexer(db_path);
             let launch_path = std::env::args()
                 .skip(1)
                 .find(|a| !a.starts_with('-') && std::path::Path::new(a).is_file());
@@ -29,6 +32,7 @@ pub fn run() {
                     covers: dir.join("covers"),
                 },
                 launch_path: Mutex::new(launch_path),
+                indexer,
             });
             Ok(())
         })
@@ -48,6 +52,8 @@ pub fn run() {
             commands::rename_collection,
             commands::delete_collection,
             commands::set_in_collection,
+            commands::search_text,
+            commands::index_status,
             commands::take_launch_path,
         ])
         .run(tauri::generate_context!())

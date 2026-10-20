@@ -3,10 +3,11 @@
 use crate::covers;
 use crate::db::{self, Book, Collection, Metadata};
 use crate::error::{Error, Result};
+use crate::fulltext::{self, IndexStatus, TextHit};
 use crate::library::{self, Dirs, ImportFailure, ImportSummary, Outcome};
 use serde::Serialize;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{mpsc, Mutex};
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -15,6 +16,8 @@ pub struct AppState {
     pub dirs: Dirs,
     /// Book path passed on the command line (Windows file associations, `free-reader book.epub`).
     pub launch_path: Mutex<Option<String>>,
+    /// Wakes the background full-text indexer.
+    pub indexer: mpsc::Sender<()>,
 }
 
 impl AppState {
@@ -66,6 +69,9 @@ pub async fn import_books(app: AppHandle, paths: Vec<String>, copy: bool) -> Res
                     error: e.to_string(),
                 }),
             }
+        }
+        if !summary.added.is_empty() {
+            let _ = state.indexer.send(());
         }
         let _ = app.emit(
             "import-progress",
@@ -236,6 +242,17 @@ pub fn set_in_collection(
     }
     tx.commit()?;
     Ok(())
+}
+
+/// Full-text search across indexed books, best matches first.
+#[tauri::command]
+pub fn search_text(state: State<'_, AppState>, query: String) -> Result<Vec<TextHit>> {
+    Ok(fulltext::search(&state.db.lock().unwrap(), &query, 300)?)
+}
+
+#[tauri::command]
+pub fn index_status(state: State<'_, AppState>) -> Result<IndexStatus> {
+    Ok(fulltext::status(&state.db.lock().unwrap())?)
 }
 
 /// Returns the launch path once, so a reload doesn't reopen it.
