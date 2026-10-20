@@ -45,24 +45,31 @@ export default function App() {
     }
   }, []);
 
-  const { importPaths, refresh } = lib;
+  const { importPaths, refresh, setEnrichmentPaused } = lib;
+
+  // Background enrichment waits while reading (see enrichLibrary).
+  useEffect(() => setEnrichmentPaused(current != null), [current, setEnrichmentPaused]);
   const addPaths = useCallback(
     async (paths: string[], { openSingle = false } = {}) => {
       if (!paths.length) return;
       setSummary(null);
+      // Pause before importing so enrichment doesn't start on the book we're about to open.
+      if (openSingle) setEnrichmentPaused(true);
       try {
         const s = await importPaths(paths, prefsRef.current.copyOnImport);
         const id = s.added[0] ?? s.duplicates[0];
         if (openSingle && paths.length === 1 && id != null && !s.failed.length) {
           setCurrent({ book: await api.markOpened(id) });
-        } else {
-          setSummary(s);
+          return;
         }
+        setSummary(s);
       } catch (e) {
         setError(String(e));
       }
+      // Didn't open a book after all: let enrichment resume.
+      if (openSingle) setEnrichmentPaused(false);
     },
-    [importPaths],
+    [importPaths, setEnrichmentPaused],
   );
 
   const addFiles = useCallback(async () => {

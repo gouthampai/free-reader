@@ -19,7 +19,10 @@ export function useLibrary() {
   }, []);
 
   // Background enrichment: one run at a time; requests during a run queue one more pass.
-  const enrich = useRef({ running: false, again: false, abort: new AbortController() });
+  const enrich = useRef({ running: false, again: false, paused: false, abort: new AbortController() });
+  const setEnrichmentPaused = useCallback((paused: boolean) => {
+    enrich.current.paused = paused;
+  }, []);
   const runEnrichment = useCallback(
     async (latest?: Book[]) => {
       const e = enrich.current;
@@ -33,7 +36,12 @@ export function useLibrary() {
         let list = latest ?? booksRef.current;
         do {
           e.again = false;
-          await enrichLibrary(list, () => void refresh(), e.abort.signal);
+          await enrichLibrary(
+            list,
+            () => void refresh(),
+            e.abort.signal,
+            () => e.paused,
+          );
           list = booksRef.current;
         } while (e.again && !e.abort.signal.aborted);
       } finally {
@@ -69,5 +77,5 @@ export function useLibrary() {
     [refresh, runEnrichment],
   );
 
-  return { books, collections, loaded, progress, refresh, importPaths };
+  return { books, collections, loaded, progress, refresh, importPaths, setEnrichmentPaused };
 }

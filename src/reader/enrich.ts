@@ -87,20 +87,32 @@ function saveAttempted(ids: Set<number>) {
  * Enriches books one at a time in the background. Each book is attempted once (remembered
  * across launches) so books that genuinely lack a cover aren't re-parsed forever.
  */
-export async function enrichLibrary(books: Book[], onChanged: () => void, signal: AbortSignal) {
+export async function enrichLibrary(
+  books: Book[],
+  onChanged: () => void,
+  signal: AbortSignal,
+  /** While true (a book is open in the reader), wait. Parsing PDFs concurrently can stall pdf.js. */
+  isPaused: () => boolean = () => false,
+) {
   const attempted = loadAttempted();
   const todo = books.filter((b) => needsEnrichment(b) && !attempted.has(b.id));
   if (!todo.length) return;
   const { makeBook } = await import("foliate-js/view.js");
   for (const book of todo) {
+    while (isPaused() && !signal.aborted) await new Promise((r) => setTimeout(r, 500));
     if (signal.aborted) return;
     attempted.add(book.id);
     saveAttempted(attempted);
+    let parsed: FoliateBook | undefined;
     try {
-      const parsed: FoliateBook = await makeBook(await api.readBookFile(book));
-      if (await fillGaps(book, metadataFromFoliate(parsed.metadata), () => parsed.getCover?.())) onChanged();
+      parsed = await makeBook(await api.readBookFile(book));
+      const p = parsed;
+      if (await fillGaps(book, metadataFromFoliate(p.metadata), () => p.getCover?.())) onChanged();
     } catch (e) {
       console.warn(`Couldn't read metadata for ${book.path}`, e);
+    } finally {
+      // Releases pdf.js documents and their workers.
+      parsed?.destroy?.();
     }
     // Yield so the UI stays responsive during large imports.
     await new Promise((r) => setTimeout(r, 50));
