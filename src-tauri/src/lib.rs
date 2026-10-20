@@ -1,4 +1,5 @@
 mod commands;
+mod covers;
 mod db;
 mod epub;
 
