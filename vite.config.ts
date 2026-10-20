@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -9,6 +10,17 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
+
+  resolve: {
+    alias: {
+      "foliate-js": fileURLToPath(new URL("./vendor/foliate-js", import.meta.url)),
+    },
+  },
+
+  // foliate-js uses top-level await and other modern syntax; both target WebViews support it.
+  build: {
+    target: "es2022",
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
