@@ -10,6 +10,7 @@ import {
   readingStatus,
   relativeTime,
   seriesLabel,
+  snippetParts,
   sortBooks,
   splitAuthors,
 } from "./library";
@@ -149,5 +150,19 @@ describe("relativeTime", () => {
     expect(relativeTime(null, now)).toBe("—");
     expect(relativeTime(now - 10_000, now)).toBe("just now");
     expect(relativeTime(now - 2 * 86_400_000, now)).toMatch(/2 days ago/);
+  });
+});
+
+describe("snippetParts", () => {
+  it("splits matches out of snippets", () => {
+    expect(snippetParts("…a \u0002whale\u0003 of a \u0002whale\u0003…")).toEqual([
+      { text: "…a ", match: false },
+      { text: "whale", match: true },
+      { text: " of a ", match: false },
+      { text: "whale", match: true },
+      { text: "…", match: false },
+    ]);
+    expect(snippetParts("no match")).toEqual([{ text: "no match", match: false }]);
+    expect(snippetParts("\u0002start\u0003")).toEqual([{ text: "start", match: true }]);
   });
 });

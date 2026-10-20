@@ -164,3 +164,19 @@ export function relativeTime(ms: number | null, now = Date.now()): string {
   for (const [unit, secs] of units) if (Math.abs(diff) >= secs) return rtf.format(Math.round(diff / secs), unit);
   return "just now";
 }
+
+/** Splits a full-text snippet ("…a \u0002whale\u0003 of…") into plain and matched parts. */
+export function snippetParts(snippet: string): { text: string; match: boolean }[] {
+  const parts: { text: string; match: boolean }[] = [];
+  for (const [i, chunk] of snippet.split("\u0002").entries()) {
+    if (i === 0) {
+      if (chunk) parts.push({ text: chunk, match: false });
+      continue;
+    }
+    const [matched, ...rest] = chunk.split("\u0003");
+    if (matched) parts.push({ text: matched, match: true });
+    const after = rest.join("");
+    if (after) parts.push({ text: after, match: false });
+  }
+  return parts;
+}

@@ -21,6 +21,7 @@ import { EmptyLibrary, HomeView } from "./HomeView";
 import { MetadataDialog } from "./MetadataDialog";
 import { NameDialog } from "./NameDialog";
 import { Sidebar } from "./Sidebar";
+import { TextSearchResults } from "./TextSearchResults";
 import { AddMenu, ListControls, SearchBox } from "./Toolbar";
 import type { LibraryView } from "./views";
 
@@ -46,7 +47,7 @@ export function Library({
   prefs: LibraryPrefs;
   onPrefsChange: (p: LibraryPrefs) => void;
   dragging: boolean;
-  onOpenBook: (b: Book) => void;
+  onOpenBook: (b: Book, opts?: { search?: string }) => void;
   onAddFiles: () => void;
   onAddFolder: () => void;
   onError: (message: string) => void;
@@ -85,7 +86,7 @@ export function Library({
   }, [view, collections, loaded]);
 
   const actions: BookActions = {
-    open: onOpenBook,
+    open: (b) => onOpenBook(b),
     edit: setEditing,
     setInCollection: (cid, book, member) => api.setInCollection(cid, [book.id], member).then(refresh).catch(fail),
     newCollectionWith: (book) => setNamePrompt({ mode: "create", bookId: book.id }),
@@ -168,8 +169,9 @@ export function Library({
     effective.kind === "author" ||
     effective.kind === "series";
 
-  const emptyMessage =
-    query || status !== "all"
+  const emptyMessage = query
+    ? "No titles, authors or series match."
+    : status !== "all"
       ? "No books match."
       : effective.kind === "collection"
         ? "This collection is empty. Right-click a book and choose Collections to add it."
@@ -239,7 +241,7 @@ export function Library({
               onSelect={(name) => navigate({ kind: "series", name })}
             />
           ) : listed.length === 0 ? (
-            <p className="pt-10 text-center text-muted">{emptyMessage}</p>
+            <p className={query ? "text-[13px] text-muted" : "pt-10 text-center text-muted"}>{emptyMessage}</p>
           ) : prefs.layout === "list" ? (
             <BookList
               books={listed}
@@ -255,6 +257,10 @@ export function Library({
               actions={actions}
               showSeries={effective.kind === "series" || prefs.sort === "series"}
             />
+          )}
+
+          {query && books.length > 0 && (
+            <TextSearchResults query={query} books={books} onOpen={(b, q) => onOpenBook(b, { search: q })} />
           )}
 
           {dragging && (

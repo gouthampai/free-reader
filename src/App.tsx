@@ -17,7 +17,7 @@ export default function App() {
   const [prefs, setPrefs] = useState<LibraryPrefs>(loadPrefs);
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
-  const [current, setCurrent] = useState<Book | null>(null);
+  const [current, setCurrent] = useState<{ book: Book; search?: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,10 +36,10 @@ export default function App() {
     return () => clearTimeout(t);
   }, [summary]);
 
-  const openBook = useCallback(async (book: Book) => {
+  const openBook = useCallback(async (book: Book, opts: { search?: string } = {}) => {
     try {
       setError(null);
-      setCurrent(await api.markOpened(book.id));
+      setCurrent({ book: await api.markOpened(book.id), search: opts.search });
     } catch (e) {
       setError(String(e));
     }
@@ -54,7 +54,7 @@ export default function App() {
         const s = await importPaths(paths, prefsRef.current.copyOnImport);
         const id = s.added[0] ?? s.duplicates[0];
         if (openSingle && paths.length === 1 && id != null && !s.failed.length) {
-          setCurrent(await api.markOpened(id));
+          setCurrent({ book: await api.markOpened(id) });
         } else {
           setSummary(s);
         }
@@ -125,8 +125,9 @@ export default function App() {
     <>
       {current ? (
         <Reader
-          key={current.id}
-          book={current}
+          key={current.book.id}
+          book={current.book}
+          initialSearch={current.search}
           settings={settings}
           onSettingsChange={setSettings}
           onClose={closeReader}

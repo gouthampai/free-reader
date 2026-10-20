@@ -67,6 +67,18 @@ export interface Annotation {
 
 export type NewAnnotation = Pick<Annotation, "kind" | "cfi" | "text" | "note" | "color" | "chapter">;
 
+export interface TextHit {
+  bookId: number;
+  sections: number;
+  /** Snippets with matches wrapped in \u0002 … \u0003. */
+  snippets: string[];
+}
+
+export interface IndexStatus {
+  pending: number;
+  indexed: number;
+}
+
 export const SUPPORTED_EXTENSIONS = ["epub", "mobi", "azw", "azw3", "fb2", "fbz", "cbz"];
 
 const MIME: Record<string, string> = {
@@ -105,6 +117,8 @@ export const api = {
   updateAnnotation: (id: number, note: string | null, color?: string) =>
     invoke<Annotation>("update_annotation", { id, note, color: color ?? null }),
   deleteAnnotation: (id: number) => invoke<void>("delete_annotation", { id }),
+  searchText: (query: string) => invoke<TextHit[]>("search_text", { query }),
+  indexStatus: () => invoke<IndexStatus>("index_status"),
   takeLaunchPath: () => invoke<string | null>("take_launch_path"),
 
   /** Loads a registered book's bytes as a File that foliate-js can open. */
