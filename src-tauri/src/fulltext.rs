@@ -61,7 +61,7 @@ pub fn index_book(
             .map_err(epub::EpubError::from)
             .and_then(|f| epub::extract_text(BufReader::new(f)))
             .unwrap_or_else(|e| {
-                eprintln!("full-text indexing failed for {path}: {e}");
+                log::warn!("full-text indexing failed for {path}: {e}");
                 Vec::new()
             })
     } else {
@@ -151,18 +151,18 @@ pub fn spawn_indexer(db_path: PathBuf) -> mpsc::Sender<()> {
         .spawn(move || {
             let mut conn = match db::open(&db_path) {
                 Ok(c) => c,
-                Err(e) => return eprintln!("full-text indexer couldn't open the database: {e}"),
+                Err(e) => return log::error!("full-text indexer couldn't open the database: {e}"),
             };
             loop {
                 match pending(&conn) {
                     Ok(books) => {
                         for (id, path, format) in books {
                             if let Err(e) = index_book(&mut conn, id, &path, &format) {
-                                eprintln!("full-text indexing failed for book {id}: {e}");
+                                log::warn!("full-text indexing failed for book {id}: {e}");
                             }
                         }
                     }
-                    Err(e) => eprintln!("full-text indexer query failed: {e}"),
+                    Err(e) => log::error!("full-text indexer query failed: {e}"),
                 }
                 // Block until woken; exit when the app drops the sender.
                 if rx.recv().is_err() {

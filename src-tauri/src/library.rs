@@ -196,7 +196,7 @@ pub fn import_file(db: &Mutex<Connection>, dirs: &Dirs, src: &Path, copy: bool) 
         File::open(src)
             .map_err(epub::EpubError::from)
             .and_then(|f| epub::extract(BufReader::new(f)))
-            .map_err(|e| eprintln!("metadata extraction failed for {}: {e}", src.display()))
+            .map_err(|e| log::warn!("metadata extraction failed for {}: {e}", src.display()))
             .ok()
     } else {
         None
@@ -225,7 +225,7 @@ pub fn import_file(db: &Mutex<Connection>, dirs: &Dirs, src: &Path, copy: bool) 
     if let Some(bytes) = cover {
         match covers::store(&dirs.covers, id, &bytes) {
             Ok(p) => db::set_cover_path(&db.lock().unwrap(), id, Some(&p.to_string_lossy()))?,
-            Err(e) => eprintln!("cover extraction failed for {}: {e}", src.display()),
+            Err(e) => log::warn!("cover extraction failed for {}: {e}", src.display()),
         }
     }
     Ok(Outcome::Added(id))
