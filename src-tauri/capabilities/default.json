@@ -26,6 +26,12 @@
         },
         {
           "url": "https://*.wiktionary.org/*"
+        },
+        {
+          "url": "https://standardebooks.org/*"
+        },
+        {
+          "url": "https://www.gutenberg.org/*"
         }
       ]
     }

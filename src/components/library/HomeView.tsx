@@ -1,4 +1,5 @@
-import { FilePlus, FolderPlus, Play } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { ExternalLink, FilePlus, FolderPlus, Play } from "lucide-react";
 import type { Book, Collection } from "../../lib/api";
 import { displayAuthors, displayTitle, readingStatus, sortBooks } from "../../lib/library";
 import { Button } from "../ui";
@@ -49,6 +50,11 @@ function ContinueCard({ book, collections, actions }: { book: Book; collections:
   );
 }
 
+const FREE_BOOK_SOURCES = [
+  { name: "Standard Ebooks", url: "https://standardebooks.org/ebooks" },
+  { name: "Project Gutenberg", url: "https://www.gutenberg.org/" },
+];
+
 export function EmptyLibrary({ onAddFiles, onAddFolder }: { onAddFiles: () => void; onAddFolder: () => void }) {
   return (
     <div className="flex h-full flex-col items-center justify-center pb-16 text-center">
@@ -72,6 +78,23 @@ export function EmptyLibrary({ onAddFiles, onAddFolder }: { onAddFiles: () => vo
         <Button onClick={onAddFolder}>
           <FolderPlus size={15} /> Add folder…
         </Button>
+      </div>
+
+      <div className="mt-12 max-w-md border-t border-border pt-6 text-[13px] text-muted">
+        <p className="mb-3">Looking for something to read? These have thousands of free, DRM-free classics:</p>
+        <div className="flex justify-center gap-5">
+          {FREE_BOOK_SOURCES.map((s) => (
+            <button
+              key={s.url}
+              type="button"
+              onClick={() => openUrl(s.url).catch(console.error)}
+              className="inline-flex items-center gap-1 font-medium text-accent hover:underline"
+            >
+              {s.name} <ExternalLink size={12} aria-hidden />
+            </button>
+          ))}
+        </div>
+        <p className="mt-4 text-[12px]">Your books and notes stay on this computer.</p>
       </div>
     </div>
   );
