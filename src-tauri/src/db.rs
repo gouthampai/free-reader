@@ -49,6 +49,42 @@ const MIGRATIONS: &[&str] = &[
     );
     CREATE INDEX collection_books_book ON collection_books(book_id);
     "#,
+    r#"
+    CREATE TABLE annotations (
+        id         INTEGER PRIMARY KEY,
+        book_id    INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        kind       TEXT NOT NULL CHECK (kind IN ('highlight', 'bookmark')),
+        cfi        TEXT NOT NULL,
+        text       TEXT,
+        note       TEXT,
+        color      TEXT,
+        chapter    TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX annotations_book ON annotations(book_id);
+
+    -- Full-text index. Section text lives in book_sections; book_text is an external-content
+    -- FTS5 index over it, kept in sync by triggers (so cascading book deletes clean it up).
+    ALTER TABLE books ADD COLUMN indexed_at INTEGER;
+    CREATE TABLE book_sections (
+        id      INTEGER PRIMARY KEY,
+        book_id INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        section INTEGER NOT NULL,
+        text    TEXT NOT NULL
+    );
+    CREATE INDEX book_sections_book ON book_sections(book_id);
+    CREATE VIRTUAL TABLE book_text USING fts5(
+        text, content='book_sections', content_rowid='id',
+        tokenize='unicode61 remove_diacritics 2'
+    );
+    CREATE TRIGGER book_sections_ai AFTER INSERT ON book_sections BEGIN
+        INSERT INTO book_text(rowid, text) VALUES (new.id, new.text);
+    END;
+    CREATE TRIGGER book_sections_ad AFTER DELETE ON book_sections BEGIN
+        INSERT INTO book_text(book_text, rowid, text) VALUES ('delete', old.id, old.text);
+    END;
+    "#,
 ];
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -144,7 +180,9 @@ pub fn open(path: &Path) -> rusqlite::Result<Connection> {
 }
 
 pub fn init(conn: &Connection) -> rusqlite::Result<()> {
-    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
+    conn.execute_batch(
+        "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
+    )?;
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
         conn.execute_batch(&format!(
