@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. The app chrome follows the reader theme via [data-theme] on <html>.
+ * Book-frame colors live in src/reader/readerCss.ts and should stay in sync.
+ */
+:root,
+[data-theme="light"] {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --surface-2: #f2f0eb;
+  --border: #e4e0d8;
+  --fg: #1f1d1a;
+  --fg-muted: #6b665d;
+  --accent: #2f5fa7;
+  --accent-fg: #ffffff;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+  color-scheme: light;
+}
+
+[data-theme="sepia"] {
+  --bg: #f4ecd8;
+  --surface: #faf4e6;
+  --surface-2: #ebe0c6;
+  --border: #dccfb0;
+  --fg: #3b2f20;
+  --fg-muted: #7a6a52;
+  --accent: #8a4b14;
+  --accent-fg: #fffaf0;
+  --shadow: 0 1px 2px rgb(60 40 10 / 0.08), 0 8px 24px rgb(60 40 10 / 0.1);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #17171a;
+  --surface: #1f1f23;
+  --surface-2: #2a2a2f;
+  --border: #34343a;
+  --fg: #e6e3dc;
+  --fg-muted: #9a968e;
+  --accent: #8fb4ff;
+  --accent-fg: #0f1730;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --shadow-panel: var(--shadow);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, Georgia, serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Range inputs styled to match the theme. */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 160ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
