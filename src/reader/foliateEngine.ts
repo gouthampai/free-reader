@@ -3,6 +3,7 @@ import "foliate-js/view.js";
 import type { ReaderSettings } from "../lib/settings";
 import type { BookMeta, ReaderEngine, ReaderLocation, TocItem } from "./engine";
 import { formatContributors, formatLanguageMap } from "./metadata";
+import { metadataFromFoliate } from "./enrich";
 import { buildReaderCss } from "./readerCss";
 
 /** ReaderEngine backed by foliate-js (EPUB, MOBI/AZW3, FB2, CBZ). */
@@ -54,6 +55,7 @@ export class FoliateEngine implements ReaderEngine {
       language: [book.metadata?.language].flat()[0],
       dir: book.dir === "rtl" ? "rtl" : "ltr",
       getCover: async () => (await book.getCover?.()) ?? null,
+      metadata: metadataFromFoliate(book.metadata),
     };
   }
 

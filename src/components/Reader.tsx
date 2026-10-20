@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type Book } from "../lib/api";
 import { LIMITS, type ReaderSettings } from "../lib/settings";
 import type { BookMeta, ReaderEngine, ReaderLocation, TocItem } from "../reader/engine";
+import { fillGaps } from "../reader/enrich";
 import { FoliateEngine } from "../reader/foliateEngine";
 import { titleFromPath } from "../reader/metadata";
 import { SettingsPanel } from "./SettingsPanel";
@@ -68,9 +69,7 @@ export function Reader({
         setToc(engine.toc);
         setTicks(engine.sectionFractions);
         setStatus({ kind: "ready" });
-        if (m.title && (!book.title || !book.authors)) {
-          api.fillMissingMetadata(book.id, { title: m.title, authors: m.authors || null }).catch(console.error);
-        }
+        fillGaps(book, m.metadata, m.getCover).catch(console.error);
       } catch (e) {
         if (!cancelled) setStatus({ kind: "error", message: e instanceof Error ? e.message : String(e) });
       }

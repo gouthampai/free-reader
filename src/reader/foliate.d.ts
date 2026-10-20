@@ -6,14 +6,27 @@ declare module "foliate-js/view.js" {
     subitems?: FoliateTocItem[];
   }
 
+  export interface FoliateMetadata {
+    title?: string | Record<string, string>;
+    author?: unknown;
+    language?: string | string[];
+    publisher?: unknown;
+    description?: string;
+    belongsTo?: { series?: FoliateSeries | FoliateSeries[] };
+  }
+
+  export interface FoliateSeries {
+    name?: string | Record<string, string>;
+    position?: number | string;
+  }
+
+  /** Parses a book file without rendering it. */
+  export function makeBook(file: File | Blob): Promise<FoliateBook>;
+
   export interface FoliateBook {
     dir?: string;
     toc?: FoliateTocItem[];
-    metadata?: {
-      title?: string | Record<string, string>;
-      author?: unknown;
-      language?: string | string[];
-    };
+    metadata?: FoliateMetadata;
     getCover?(): Promise<Blob | null> | Blob | null;
     transformTarget?: EventTarget;
   }

@@ -1,3 +1,4 @@
+import type { Metadata } from "../lib/api";
 import type { ReaderSettings } from "../lib/settings";
 
 /**
@@ -17,6 +18,8 @@ export interface BookMeta {
   language?: string;
   dir: "ltr" | "rtl";
   getCover(): Promise<Blob | null>;
+  /** Library-shaped metadata, used to fill fields the importer couldn't extract. */
+  metadata: Partial<Metadata>;
 }
 
 export interface ReaderLocation {
