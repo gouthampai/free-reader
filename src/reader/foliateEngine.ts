@@ -9,6 +9,7 @@ import type {
   ReaderEngine,
   ReaderLocation,
   SearchEvent,
+  SpeechSource,
   TextSelection,
   TocItem,
 } from "./engine";
@@ -167,6 +168,7 @@ export class FoliateEngine implements ReaderEngine {
       annotations: !fixed,
       search: !!this.#view.book?.sections?.some((s) => s.createDocument),
       reflowable: !fixed,
+      speech: !fixed,
     };
   }
 
@@ -258,6 +260,59 @@ export class FoliateEngine implements ReaderEngine {
   clearSearch() {
     this.#view.clearSearch();
   }
+
+  /** The doc whose text is being spoken, so its highlight can be cleared. */
+  #speakingDoc: Document | null = null;
+
+  #highlightSpoken = (range: Range) => {
+    const doc = range.startContainer.ownerDocument;
+    if (!doc) return;
+    this.#speakingDoc = doc;
+    // Selecting (rather than drawing an overlay) shows the sentence in every theme, and doesn't
+    // open the selection toolbar, which only reacts to pointer/key releases.
+    const sel = doc.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    void this.#view.renderer?.scrollToAnchor?.(range, true);
+  };
+
+  async #initSpeech() {
+    await this.#view.initTTS("sentence", this.#highlightSpoken);
+  }
+
+  /** Moves to the next section and starts reading it; null at the end of the book. */
+  async #nextSpeechSection(): Promise<string | null> {
+    const r = this.#view.renderer;
+    const before = r?.getContents()[0]?.index;
+    if (!r?.nextSection) return null;
+    await r.nextSection();
+    if (r.getContents()[0]?.index === before) return null;
+    await this.#initSpeech();
+    return this.#view.tts?.start() ?? this.#nextSpeechSection();
+  }
+
+  readonly speech: SpeechSource = {
+    start: async () => {
+      await this.#initSpeech();
+      const range = this.#view.lastLocation?.range;
+      const tts = this.#view.tts;
+      let ssml: string | undefined;
+      try {
+        ssml = range ? tts?.from(range) : tts?.start();
+      } catch {
+        // foliate throws when no text block follows the page start (e.g. a title page).
+        ssml = tts?.start();
+      }
+      return ssml ?? this.#nextSpeechSection();
+    },
+    next: async () => this.#view.tts?.next() ?? this.#nextSpeechSection(),
+    prev: async () => this.#view.tts?.prev() ?? null,
+    mark: (name) => this.#view.tts?.setMark(name),
+    stop: () => {
+      this.#speakingDoc?.getSelection()?.removeAllRanges();
+      this.#speakingDoc = null;
+    },
+  };
 
   destroy() {
     this.#reducedMotion.removeEventListener("change", this.#onMotionChange);

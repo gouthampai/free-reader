@@ -37,7 +37,7 @@ type Popover = { id: number; rect: DOMRect; editing: boolean };
 
 const SAVE_DELAY_MS = 600;
 const NOTICE_MS = 2200;
-const NO_CAPABILITIES: Capabilities = { annotations: false, search: false, reflowable: true };
+const NO_CAPABILITIES: Capabilities = { annotations: false, search: false, reflowable: true, speech: false };
 
 const isTyping = (e: KeyboardEvent) => {
   const t = e.target as HTMLElement | null;

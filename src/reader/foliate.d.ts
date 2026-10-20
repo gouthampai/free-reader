@@ -44,6 +44,10 @@ declare module "foliate-js/view.js" {
   export interface FoliateRenderer extends HTMLElement {
     setStyles?(css: string): void;
     next(): Promise<void>;
+    nextSection?(): Promise<void>;
+    prevSection?(): Promise<void>;
+    scrollToAnchor?(anchor: Range, select?: boolean): Promise<void>;
+    getContents(): { index: number; doc: Document }[];
   }
 
   export class View extends HTMLElement {
@@ -75,6 +79,15 @@ declare module "foliate-js/view.js" {
       | { label: string; subitems: { cfi: string; excerpt: { pre: string; match: string; post: string } }[] }
     >;
     clearSearch(): void;
+    initTTS(granularity?: "word" | "sentence", highlight?: (range: Range) => void): Promise<void>;
+    tts?: {
+      doc: Document;
+      start(): string | undefined;
+      from(range: Range): string | undefined;
+      next(paused?: boolean): string | undefined;
+      prev(paused?: boolean): string | undefined;
+      setMark(name: string): void;
+    };
   }
 }
 

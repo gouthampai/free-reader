@@ -41,6 +41,23 @@ export interface Capabilities {
   search: boolean;
   /** Text settings (font, size, spacing, scroll mode) apply. */
   reflowable: boolean;
+  /** The book can be read aloud. */
+  speech: boolean;
+}
+
+/**
+ * Text to read aloud, one block (roughly a paragraph) at a time, as SSML whose <mark> names
+ * identify sentences. Crosses section boundaries; methods return null at the end of the book.
+ */
+export interface SpeechSource {
+  /** Starts at the top of the visible page. */
+  start(): Promise<string | null>;
+  next(): Promise<string | null>;
+  prev(): Promise<string | null>;
+  /** Highlights (and scrolls to) the sentence for a mark in the current block. */
+  mark(name: string): void;
+  /** Clears the spoken-text highlight. */
+  stop(): void;
 }
 
 export interface TextSelection {
@@ -93,5 +110,7 @@ export interface ReaderEngine {
   /** Searches the whole book, streaming results chapter by chapter. Break out of the loop to cancel. */
   search(query: string): AsyncGenerator<SearchEvent>;
   clearSearch(): void;
+  /** Read-aloud text source; only meaningful when `capabilities.speech`. */
+  readonly speech: SpeechSource;
   destroy(): void;
 }
