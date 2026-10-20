@@ -52,9 +52,11 @@ export class FoliateEngine implements ReaderEngine {
 
     view.addEventListener("relocate", (e) => {
       const d = (e as CustomEvent<FoliateRelocateDetail>).detail;
+      // Foliate reports NaN progress while a section is still being laid out; skip those.
+      if (!Number.isFinite(d.fraction)) return;
       emit(this.#relocate, {
         cfi: d.cfi,
-        fraction: d.fraction ?? 0,
+        fraction: d.fraction,
         chapter: d.tocItem?.label?.trim(),
         chapterHref: d.tocItem?.href,
         location: d.location ? { current: d.location.current, total: d.location.total } : undefined,
