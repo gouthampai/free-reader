@@ -66,11 +66,11 @@ Each format plugs in behind it, so the UI is identical across formats.
 - [x] PDF support (via foliate-js's pdf.js integration, behind the same `ReaderEngine` interface).
 
 ### Phase 4 — Polish (2 weeks)
-- [ ] Smooth page-turn animations, instant startup, lazy cover loading.
-- [ ] Native menus, window state restore, file associations, "Open With".
-- [ ] Accessibility: full keyboard navigation, screen reader labels, high-contrast theme, dyslexia-friendly fonts.
-- [ ] Text-to-speech via OS voices (AVSpeechSynthesizer / SAPI-WinRT).
-- [ ] Empty-library onboarding; helpful errors for corrupt files.
+- [x] Smooth page-turn animations, instant startup, lazy cover loading.
+- [x] Native menus, window state restore, file associations, "Open With".
+- [x] Accessibility: full keyboard navigation, screen reader labels, high-contrast theme, dyslexia-friendly fonts.
+- [x] Text-to-speech via OS voices (Web Speech API, which uses AVSpeechSynthesizer / SAPI-OneCore).
+- [x] Empty-library onboarding; helpful errors for corrupt files.
 
 ### Phase 5 — Release (1 week)
 - [ ] Auto-updater (Tauri updater, signed manifests).
@@ -93,10 +93,6 @@ Each format plugs in behind it, so the UI is identical across formats.
 
 - Phase 0 is done except Playwright and code signing (needs an Apple Developer ID and a Windows signing certificate).
 - Phase 1 is implemented. It's verified end to end (open → render → metadata → progress saved); page turning, settings and the TOC still need manual QA on both OSes.
-- PDF (Phase 3): foliate's `pdf.js` loads PDF.js assets with `new URL(\`vendor/pdfjs/${path}\`, import.meta.url)`, which Vite can't resolve.
-  Fix by serving `vendor/foliate-js/vendor/pdfjs` as static assets.
-- Security: the Tauri CSP is currently `null`. Tighten it once asset loading is settled (foliate needs `blob:` frames).
-- macOS file associations send `RunEvent::Opened`, not argv. Handle that in Phase 4. (The argv path already works for Windows.)
 - Phase 2 is implemented. Import, dedupe, copy/link, EPUB metadata and covers (Rust), and MOBI/AZW3 metadata and covers (foliate enrichment) are verified in the running app. The library UI itself (grid/list, menus, dialogs, collections) still needs manual QA.
 - Metadata extraction in Rust covers EPUB only. Other formats are filled in by the frontend via foliate-js after import, one book at a time in the background.
   If large MOBI libraries make that slow, move MOBI/FB2 parsing to Rust.
@@ -109,6 +105,21 @@ Each format plugs in behind it, so the UI is identical across formats.
 - The full-text index covers EPUB only. Other formats would need text extraction (Rust for MOBI/FB2, or via foliate).
 - Background metadata enrichment pauses while a book is open: parsing a PDF concurrently with the reader stalls pdf.js.
 - "Define" opens the macOS Dictionary app; Windows has no system dictionary, so it opens Wiktionary.
+- Phase 4 is implemented. Verified in the running app:
+  - window shown by the frontend after first render;
+  - Finder-style opens (cold launch and while running) via a real `.app` bundle;
+  - single-instance forwarding with a relative path;
+  - window state saved on quit;
+  - bundled fonts loading in the app and in book frames;
+  - read aloud speaking through the system voices (68 on macOS) with sentence highlighting;
+  - the strict CSP with no violations across library, EPUB, MOBI, PDF and dev mode.
+
+  Not verified here (synthetic input is blocked): clicking menu items, the read-aloud bar, keyboard focus behavior,
+  and anything on Windows.
+- Known upstream issue: closing a book while foliate is still laying it out logs two harmless uncaught errors
+  (`fonts.ready` / resize callbacks run after `Paginator.destroy()`). Worth reporting to foliate-js.
+- Logs: `~/Library/Logs/com.freereader.app/` on macOS, `%LOCALAPPDATA%\com.freereader.app\logs` on Windows
+  (Help → Show Log Files).
 - Real-world EPUB check: `FR_CORPUS=/path/to/epubs cargo test corpus -- --ignored --nocapture` (in `src-tauri`).
 
 ## 6. Data model

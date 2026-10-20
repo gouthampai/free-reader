@@ -10,6 +10,12 @@ See [PLAN.md](PLAN.md) for the roadmap.
 EPUB, MOBI/AZW/AZW3, FB2/FBZ, CBZ and PDF. Highlights and in-book search work for reflowable formats
 (not PDF or comics). DRM-protected books are not supported.
 
+## Accessibility
+
+Light, sepia, dark and high-contrast themes; Atkinson Hyperlegible and OpenDyslexic fonts (bundled,
+OFL); read aloud with the system voices; full keyboard navigation; screen reader labels and page
+announcements; and page-turn animation that follows the OS "reduce motion" setting.
+
 ## Development
 
 Prerequisites: Node 24 LTS (`nvm use` reads `.nvmrc`), pnpm, Rust (via [rustup](https://rustup.rs)), and the
@@ -63,6 +69,8 @@ src-tauri/src/
 vendor/foliate-js/        vendored rendering engine (MIT), pinned to 78914ae
 ```
 
+Logs (webview errors included) go to stdout and the OS log directory; Help → Show Log Files opens it.
+
 Library data lives in the OS app-data directory: `library.db`, `covers/`, and `books/`
 (managed copies of imported books, when "Copy files into library" is on). That directory is
 in `~/Library/Application Support/com.freereader.app/` on macOS and
@@ -78,5 +86,10 @@ in `~/Library/Application Support/com.freereader.app/` on macOS and
 | B | Bookmark / unbookmark the current page |
 | ⌘/Ctrl + F | Search the book (in the reader) or the library |
 | ⌘/Ctrl + `=` / `-` | Larger / smaller text |
-| ⌘/Ctrl + O | Add books |
-| Esc | Close panel, then back to library |
+| ⌘/Ctrl + O / ⌘/Ctrl + Shift + O | Add books / add a folder |
+| ⌘/Ctrl + L | Back to the library |
+| ⌘/Ctrl + D | Bookmark the current page (same as B) |
+| Esc | Stop reading aloud, close panel, then back to library |
+
+Option groups (themes, fonts, highlight colors, sidebar tabs) are a single Tab stop; use the arrow keys
+inside them.
